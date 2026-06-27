@@ -1,0 +1,2486 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>スライド ジェネレーター</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@700&family=Noto+Sans+JP:wght@400;500&family=M+PLUS+Rounded+1c:wght@700&family=Klee+One:wght@600&family=Shippori+Mincho:wght@700&family=Yuji+Syuku&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #1a1a2e;
+  font-family: 'Noto Sans JP', sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 16px;
+  gap: 16px;
+  min-height: 100vh;
+}
+
+.panel {
+  width: 100%;
+  max-width: 900px;
+  background: #22223e;
+  border: 1px solid #3a3a5c;
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.panel label { color: #9fb4d0; font-size: 13px; }
+.panel textarea {
+  width: 100%;
+  min-height: 160px;
+  resize: vertical;
+  background: #14142a;
+  color: #e6eefc;
+  border: 1px solid #3a3a5c;
+  border-radius: 6px;
+  padding: 10px;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: 14px;
+  line-height: 1.7;
+}
+.panel-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.panel-row > div { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 4px; }
+.panel input[type="text"] {
+  background: #14142a;
+  color: #e6eefc;
+  border: 1px solid #3a3a5c;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 14px;
+  font-family: 'Noto Sans JP', sans-serif;
+}
+.panel-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.btn {
+  background: #2a2a4a;
+  color: #ccc;
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 10px 22px;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: 'Noto Sans JP', sans-serif;
+  transition: background 0.15s;
+}
+.btn:hover:not(:disabled) { background: #3a3a6a; color: #fff; }
+.btn:disabled { opacity: 0.35; cursor: default; }
+.btn-primary { background: #1a3a5c; color: #7ec8f0; border-color: #2E6A9A; }
+.btn-zip { background: #1a4a2c; color: #7ef0a0; border-color: #2E9A4F; }
+.status { color: #9fb4d0; font-size: 13px; min-height: 18px; }
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+}
+.panel-title { color: #e6eefc; font-size: 14px; font-weight: 600; }
+.panel-arrow { color: #9fb4d0; font-size: 12px; transition: transform 0.15s; }
+.panel.collapsed .panel-arrow { transform: rotate(-90deg); }
+.panel-body { display: flex; flex-direction: column; gap: 10px; }
+.panel.collapsed .panel-body { display: none; }
+.panel select {
+  background: #14142a;
+  color: #e6eefc;
+  border: 1px solid #3a3a5c;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 14px;
+  font-family: 'Noto Sans JP', sans-serif;
+}
+.hint-small { color: #777; font-size: 11px; }
+.illust img { width: 100%; height: auto; border-radius: 4px; display: block; pointer-events: none; }
+.illust { outline: 1px dashed transparent; transition: outline-color 0.15s; z-index: 15; }
+.illust:hover { outline-color: #2E6A9A; }
+.resize-handle {
+  position: absolute;
+  right: -7px;
+  bottom: -7px;
+  width: 14px;
+  height: 14px;
+  background: #1A4F78;
+  border: 2px solid #fff;
+  border-radius: 3px;
+  cursor: se-resize;
+  z-index: 20;
+  touch-action: none;
+}
+.illust-del-btn {
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  width: 18px;
+  height: 18px;
+  background: #b03030;
+  color: #fff;
+  border-radius: 50%;
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+  cursor: pointer;
+  z-index: 21;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.illust:hover .illust-del-btn { opacity: 1; }
+.upload-tray {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px;
+  background: #14142a;
+  border: 1px solid #3a3a5c;
+  border-radius: 6px;
+  min-height: 64px;
+}
+.upload-thumb {
+  width: 64px;
+  height: 64px;
+  border-radius: 6px;
+  object-fit: cover;
+  cursor: grab;
+  border: 1px solid #3a3a5c;
+}
+.upload-thumb:active { cursor: grabbing; }
+.key-input-wrap { position: relative; display: flex; }
+.key-input-wrap input { flex: 1; padding-right: 38px; }
+.key-eye-btn {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 4px 8px;
+  opacity: 0.6;
+  line-height: 1;
+}
+.key-eye-btn:hover { opacity: 1; }
+
+.ts-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid #2a2a4a;
+}
+.ts-row .ts-idx { width: 34px; color: #9fb4d0; font-size: 12px; }
+.ts-row .ts-text { flex: 1; color: #ccc; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ts-row input[type="text"] { width: 80px; }
+.btn-sm { padding: 4px 8px; font-size: 12px; }
+
+.ui-bar {
+  width: 100%;
+  max-width: 900px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.nav-btn {
+  background: #2a2a4a;
+  color: #ccc;
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 8px 20px;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: 'Noto Sans JP', sans-serif;
+  transition: background 0.15s;
+}
+.nav-btn:hover:not(:disabled) { background: #3a3a6a; color: #fff; }
+.nav-btn:disabled { opacity: 0.3; cursor: default; }
+.counter { color: #fff; font-size: 15px; font-weight: 500; min-width: 80px; text-align: center; }
+.counter input {
+  width: 48px;
+  background: #14142a;
+  color: #fff;
+  border: 1px solid #3a3a5c;
+  border-radius: 4px;
+  font-size: 15px;
+  font-weight: 500;
+  text-align: center;
+  padding: 2px 4px;
+}
+.hint { color: #666; font-size: 12px; text-align: center; width: 100%; }
+
+.slide-edit-box {
+  width: 100%;
+  max-width: 900px;
+  background: #1c1c36;
+  border: 1px solid #3a3a5c;
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-top: 14px;
+}
+.slide-edit-box label { color: #aaa; font-size: 12px; display: block; margin-bottom: 6px; }
+.slide-edit-box textarea {
+  width: 100%;
+  min-height: 90px;
+  background: #14142a;
+  color: #fff;
+  border: 1px solid #3a3a5c;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 14px;
+  line-height: 1.6;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.slide-wrapper { width: 100%; max-width: 900px; }
+.aspect { width: 100%; aspect-ratio: 16 / 9; position: relative; background: #2a2a4a; border-radius: 4px; }
+.aspect:empty::after {
+  content: "テキストを入力して「スライド作成」を押してください";
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  color: #666; font-size: 13px; text-align: center; padding: 20px;
+}
+
+.slide {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: none;
+  background: #B8DCF0;
+  overflow: hidden;
+  cursor: pointer;
+}
+.slide.active { display: flex; align-items: center; justify-content: flex-start; }
+
+.corner { position: absolute; width: 7%; height: 16%; border-color: #2E6A9A; border-style: solid; opacity: 0.3; }
+.tl { top: 5%; left: 3%; border-width: 2px 0 0 2px; }
+.tr { top: 5%; right: 3%; border-width: 2px 2px 0 0; }
+.bl { bottom: 5%; left: 3%; border-width: 0 0 2px 2px; }
+.br { bottom: 5%; right: 3%; border-width: 0 2px 2px 0; }
+
+.slide-num {
+  position: absolute;
+  top: 4%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: clamp(9px, 1.4vw, 18px);
+  letter-spacing: 0.25em;
+  color: #1A4F78;
+  opacity: 0.55;
+  white-space: nowrap;
+  outline: none;
+  cursor: text;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.slide-num:hover { outline: 1px dashed rgba(26, 79, 120, 0.6); }
+.slide-num:focus { outline: 1px solid #1A4F78; opacity: 0.9; background: rgba(255,255,255,0.5); }
+
+.text-area {
+  position: relative;
+  z-index: 10;
+  text-align: left;
+  padding: 6% 10%;
+  width: 100%;
+}
+
+.sentence {
+  font-family: 'Noto Serif JP', serif;
+  font-weight: 700;
+  color: #0a0a0a;
+  line-height: 2.2;
+  letter-spacing: 0.03em;
+  display: block;
+  font-size: clamp(12px, 3.5vw, 31.5px);
+}
+.sentence + .sentence { margin-top: 0.3em; }
+
+ruby rt {
+  font-size: 0.38em;
+  color: #111;
+  font-family: 'Noto Sans JP', sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+}
+
+.section-label {
+  position: absolute;
+  bottom: 4%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'Noto Sans JP', sans-serif;
+  font-size: clamp(7px, 1.2vw, 16px);
+  letter-spacing: 0.3em;
+  color: #1A4F78;
+  opacity: 0.5;
+  white-space: nowrap;
+}
+</style>
+<style id="dynamic-style"></style>
+</head>
+<body>
+
+<div class="panel">
+  <div class="panel-header" onclick="togglePanel(this)">
+    <span class="panel-title">💾 Lưu / Mở dự án</span>
+    <span class="panel-arrow">▾</span>
+  </div>
+  <div class="panel-body">
+  <span class="hint-small">Dự án tự động lưu vào máy bạn (trình duyệt này) sau mỗi thay đổi. Tắt máy/tắt browser rồi mở lại file này vẫn khôi phục được. Nên bấm "Tải file dự án" để có bản sao lưu riêng, phòng khi xoá dữ liệu trình duyệt.</span>
+  <div class="panel-actions" style="margin-top: 8px;">
+    <button class="btn" onclick="downloadProjectFile()">💾 Tải file dự án (.json)</button>
+    <button class="btn" onclick="document.getElementById('project-file-input').click()">📂 Mở file dự án</button>
+    <button class="btn" onclick="clearSavedProject()">🗑 Xoá dữ liệu đã lưu</button>
+  </div>
+  <input type="file" id="project-file-input" accept="application/json" style="display:none;" onchange="handleProjectFileSelect(event)">
+  <span class="status" id="project-status"></span>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-header" onclick="togglePanel(this)">
+    <span class="panel-title">📝 Nội dung &amp; cấu hình</span>
+    <span class="panel-arrow">▾</span>
+  </div>
+  <div class="panel-body">
+  <label for="raw-input">Nội dung (dùng cú pháp 漢字[かんじ] để thêm furigana cho kanji; dòng trống = ngắt slide)</label>
+  <textarea id="raw-input">朝[あさ]、六時[ろくじ]に目覚[めざ]まし時計[どけい]が鳴[な]りました。「リンリン、リンリン。」
+わたしはまだとても眠[ねむ]いです。
+布団[ふとん]の中[なか]はあたたかいです。でも、外[そと]は寒[さむ]いです。
+今[いま]は冬[ふゆ]ですから、毎朝[まいあさ]とても寒[さむ]いです。
+「あと五分[ごふん]だけ……」とわたしは小[ちい]さい声[こえ]で言[い]いました。
+目[め]を閉[と]じました。
+でも、また目覚[めざ]まし時計[どけい]が鳴[な]りました。「リンリン、リンリン。」
+「もう起[お]きなければなりません。」
+わたしはゆっくり起[お]きました。
+布団[ふとん]から出[で]ました。本当[ほんとう]に寒[さむ]いです。
+体[からだ]がふるえました。わたしはすぐにストーブをつけました。
+少[すこ]しずつ部屋[へや]があたたかくなりました。
+窓[まど]を開[あ]けました。外[そと]はまだ暗[くら]いです。
+空[そら]に星[ほし]が見[み]えます。そして、雪[ゆき]が降[ふ]っています。
+道[みち]は白[しろ]いです。木[き]も白[しろ]いです。とてもきれいです。
+「わあ、きれいですね。今日[きょう]は雪[ゆき]です。」
+少[すこ]しうれしくなりました。
+でも、雪[ゆき]の日[ひ]は電車[でんしゃ]が遅[おく]れます。だから、今日[きょう]は早[はや]く家[いえ]を出[で]なければなりません。</textarea>
+  <div class="panel-row">
+    <div>
+      <label for="title-input">Tiêu đề (slide-num)</label>
+      <input type="text" id="title-input" value="留学生の一日">
+    </div>
+    <div>
+      <label for="label-input">Nhãn cấp độ (section-label)</label>
+      <input type="text" id="label-input" value="にほんご　N4 / N5">
+    </div>
+  </div>
+  <div>
+    <label for="download-range">Chọn slide để tải xuống (vd: 1-18 hoặc 1-5,8,10-12, để trống = tải tất cả)</label>
+    <div class="panel-actions" style="margin-bottom: 6px;">
+      <button class="btn" onclick="selectAllDownloadRange()">☑️ Chọn tất cả</button>
+      <button class="btn" onclick="clearDownloadRange()">☐ Xoá lựa chọn</button>
+    </div>
+    <input type="text" id="download-range" placeholder="VD: 1-18 (để trống = tất cả)" oninput="updateDownloadRangeInfo()">
+    <span class="hint-small" id="download-range-info">Tạo slide trước để chọn.</span>
+  </div>
+  <div class="panel-actions">
+    <button class="btn btn-primary" id="gen-btn" onclick="generateSlides()">🎬 Tạo slide</button>
+    <button class="btn btn-zip" id="zip-btn" onclick="downloadAllZip()" disabled>📦 Tải tất cả (ZIP)</button>
+    <button class="btn btn-zip" id="pptx-btn" onclick="downloadPptx()" disabled>📊 Xuất PowerPoint</button>
+    <span class="status" id="status"></span>
+  </div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-header" onclick="togglePanel(this)">
+    <span class="panel-title">🔢 Nội dung đã đánh số theo slide</span>
+    <span class="panel-arrow">▾</span>
+  </div>
+  <div class="panel-body">
+    <label for="numbered-content-textarea">Nội dung từng slide kèm số thứ tự (tạo slide trước để xem), có thể copy toàn bộ</label>
+    <textarea id="numbered-content-textarea" readonly placeholder="Tạo slide trước để xem nội dung đã đánh số."></textarea>
+    <label style="display:flex; align-items:center; gap:6px; font-size:13px; color:#ccc; margin-top:4px;">
+      <input type="checkbox" id="numbered-content-plain" onchange="updateNumberedContentBox()" style="width:auto;">
+      Chữ thuần (bỏ cú pháp furigana 漢字[かんじ], chỉ giữ chữ hiển thị)
+    </label>
+    <div class="panel-actions">
+      <button class="btn" onclick="copyNumberedContent()">📋 Sao chép nội dung đã đánh số</button>
+      <span class="status" id="numbered-content-status"></span>
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-header" onclick="togglePanel(this)">
+    <span class="panel-title">🎨 Tạo hình ảnh AI cho slide đã chọn</span>
+    <span class="panel-arrow">▾</span>
+  </div>
+  <div class="panel-body">
+  <div class="panel-row">
+    <div>
+      <label for="img-provider">API</label>
+      <select id="img-provider" onchange="fetchModelList()">
+        <option value="gemini">Google Gemini</option>
+        <option value="openai">OpenAI</option>
+        <option value="claude">Claude (Anthropic)</option>
+      </select>
+    </div>
+    <div>
+      <label for="img-model">Model</label>
+      <select id="img-model">
+        <option value="gemini-2.5-flash-image">gemini-2.5-flash-image (mặc định)</option>
+      </select>
+      <span class="hint-small" id="model-status"></span>
+    </div>
+  </div>
+  <div>
+    <label for="img-key">API key</label>
+    <div class="key-input-wrap">
+      <input type="password" id="img-key" placeholder="Dán API key tương ứng với API đã chọn ở trên" onchange="fetchModelList()" onblur="fetchModelList()">
+      <button type="button" class="key-eye-btn" id="key-eye-btn" onclick="toggleKeyVisibility()" title="Hiện/ẩn API key">👁</button>
+    </div>
+    <span class="hint-small">Nhập key xong sẽ tự lấy danh sách model. Chỉ Gemini gọi được trực tiếp từ trình duyệt (không backend); Claude không có API tạo ảnh, OpenAI bị chặn CORS khi gọi trực tiếp từ JS phía client.</span>
+  </div>
+  <div class="panel-row">
+    <div>
+      <label for="img-complexity">Độ phức tạp</label>
+      <select id="img-complexity">
+        <option value="simple">Đơn giản</option>
+        <option value="complex">Phức tạp</option>
+      </select>
+    </div>
+    <div>
+      <label for="img-text">Chữ trong ảnh</label>
+      <select id="img-text">
+        <option value="no">Không có chữ</option>
+        <option value="yes">Có chữ</option>
+      </select>
+    </div>
+  </div>
+  <label style="display:flex; align-items:center; gap:6px; font-size:13px; color:#ccc;">
+    <input type="checkbox" id="img-no-border" checked style="width:auto;">
+    Không viền (ảnh tràn đầy khung, không viền/khung trắng quanh ảnh)
+  </label>
+  <div>
+    <label for="img-extra-prompt">Yêu cầu thêm (tuỳ chọn)</label>
+    <input type="text" id="img-extra-prompt" placeholder="VD: màu pastel, không có viền trắng, theo phong cách Ghibli...">
+  </div>
+  <span class="hint-small">Không cần nhập prompt đầy đủ — AI tự lấy nội dung câu của từng slide để tạo ảnh, luôn theo phong cách minh hoạ vector (vector art). Ô trên dùng để thêm yêu cầu riêng nếu muốn.</span>
+  <div>
+    <label for="slide-range">Chọn slide (vd: 1-18 hoặc 1-5,8,10-12)</label>
+    <div class="panel-actions" style="margin-bottom: 6px;">
+      <button class="btn" onclick="selectAllSlides()">☑️ Chọn tất cả</button>
+      <button class="btn" onclick="deselectAllSlides()">☐ Xoá lựa chọn</button>
+    </div>
+    <input type="text" id="slide-range" placeholder="VD: 1-18" oninput="updateSlideRangeInfo()">
+    <span class="hint-small" id="slide-range-info">Tạo slide trước để chọn.</span>
+  </div>
+  <div class="panel-actions">
+    <button class="btn btn-primary" id="img-btn" onclick="generateImages()" disabled>🎨 Tạo hình ảnh</button>
+    <button class="btn" id="img-stop-btn" onclick="stopImageGeneration()" disabled>⏹ Dừng</button>
+    <button class="btn btn-zip" id="img-download-btn" onclick="downloadAiImages()">⬇️ Tải ảnh đã tạo</button>
+    <span class="status" id="img-status"></span>
+  </div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-header" onclick="togglePanel(this)">
+    <span class="panel-title">📤 Tải ảnh lên (kéo vào slide)</span>
+    <span class="panel-arrow">▾</span>
+  </div>
+  <div class="panel-body">
+    <input type="file" id="upload-input" accept="image/*" multiple onchange="handleUploadFiles(event)">
+    <span class="hint-small">Chọn nhiều ảnh cùng lúc, ảnh sẽ vào khay tạm dưới đây. Kéo từng ảnh từ khay thả vào slide đang xem (slide đang hiện trong khung bên dưới) để chèn ảnh, kéo/resize lại sau khi thả. Bấm ✕ trên ảnh đã chèn để xoá.</span>
+    <div class="upload-tray" id="upload-tray"><span class="hint-small tray-empty-hint">Chưa có ảnh nào được tải lên.</span></div>
+
+    <label for="img-map-prefix" style="margin-top:6px;">Mapping tự động theo tên file (tiền_tố_số.ext, vd: scene_1.jpg, scene_2.png...)</label>
+    <input type="text" id="img-map-prefix" placeholder="VD: scene">
+    <div class="panel-actions">
+      <button class="btn btn-primary" onclick="mapUploadedImagesToSlides()">🔗 Mapping ảnh vào slide theo số</button>
+      <span class="status" id="img-map-status"></span>
+    </div>
+    <span class="hint-small">Đặt tên ảnh đúng dạng "tiền_tố_số.phần_mở_rộng" trước khi tải lên ở trên (số 1 = slide 1, số 2 = slide 2...). Nhập đúng tiền tố rồi bấm nút này để tự gán từng ảnh vào đúng slide theo số thứ tự, không cần kéo tay.</span>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-header" onclick="togglePanel(this)">
+    <span class="panel-title">🎙️ Mapping Audio &amp; Xuất Video YouTube</span>
+    <span class="panel-arrow">▾</span>
+  </div>
+  <div class="panel-body">
+    <label for="audio-input">Tải lên file audio tiếng Nhật (mp3, wav, m4a...)</label>
+    <input type="file" id="audio-input" accept="audio/*" onchange="handleAudioFile(event)">
+    <audio id="map-audio" controls style="width:100%;"></audio>
+    <span class="hint-small" id="audio-status"></span>
+
+    <div class="panel-row">
+      <div>
+        <label for="auto-mark-model">Mức AI (nhẹ &lt;-&gt; chính xác)</label>
+        <select id="auto-mark-model">
+          <option value="Xenova/whisper-tiny">Tiny — nhẹ nhất, nhanh nhất, kém chính xác hơn (~75MB)</option>
+          <option value="Xenova/whisper-base" selected>Base — cân bằng, nhẹ &amp; nhanh (mặc định, ~145MB)</option>
+          <option value="Xenova/whisper-small">Small — chính xác nhất, nặng &amp; chậm hơn (~250MB)</option>
+        </select>
+      </div>
+    </div>
+    <div class="panel-actions" style="margin-top:6px;">
+      <button class="btn btn-primary" id="auto-mark-btn" onclick="autoMarkSlides()">🤖 Tự động đánh dấu</button>
+      <button class="btn" id="auto-mark-cancel-btn" onclick="cancelAutoMark()" disabled>⏹ Hủy</button>
+      <button class="btn" id="start-mark-btn" onclick="startMarking()">▶️ Bắt đầu đánh dấu tay</button>
+      <button class="btn" id="mark-btn" onclick="markNextSlide()" disabled>📍 Đánh dấu slide tiếp theo (Space)</button>
+      <button class="btn" id="reset-mark-btn" onclick="resetMarks()">↺ Làm lại đánh dấu</button>
+    </div>
+    <span class="hint-small" id="worker-mode-hint">AI sẽ chạy ở luồng riêng (không làm đơ trình duyệt) nếu trang được mở qua server (http/https); nếu mở trực tiếp file HTML (file://), trình duyệt chặn AI chạy nền nên sẽ tạm đơ trong lúc xử lý — hãy chọn "Tiny" hoặc "Base" để xử lý nhanh, đỡ đơ hơn. Có thể bấm "Hủy" để dừng giữa chừng (chỉ dừng được giữa các đoạn audio dài, không dừng ngay được nếu đang xử lý 1 đoạn ngắn ở luồng chính).</span>
+    <span class="status" id="mark-progress"></span>
+    <span class="hint-small">"Tự động đánh dấu" dùng AI nhận diện giọng nói (chạy ngay trong trình duyệt, không cần API key) để nghe audio rồi khớp từng chữ với nội dung slide — chính xác hơn hẳn so với chỉ dò khoảng lặng. Lần đầu dùng sẽ tải mô hình AI (~250MB, chỉ tải 1 lần, các lần sau dùng lại từ cache). Nếu không tải được mô hình hoặc audio quá khác văn bản, sẽ tự chuyển sang ước lượng theo khoảng lặng + độ dài câu. Luôn nên dùng "Xem trước đồng bộ" để kiểm tra, chỉnh lại ở bảng dưới nếu lệch. Hoặc bấm "Bắt đầu đánh dấu tay" để tự nghe và bấm "Đánh dấu" (phím Space) theo từng slide.</span>
+
+    <label style="margin-top:8px;">Bảng thời điểm từng slide (mm:ss, có thể chỉnh tay)</label>
+    <div id="timestamp-list"><span class="hint-small">Tạo slide trước để mapping.</span></div>
+
+    <div class="panel-actions" style="margin-top:10px;">
+      <button class="btn" id="preview-btn" onclick="previewSync()">👁 Xem trước đồng bộ</button>
+      <button class="btn" id="preview-stop-btn" onclick="stopPreviewSync()" disabled>⏹ Dừng xem trước</button>
+    </div>
+    <span class="hint-small">Xem trước sẽ phát audio và tự chuyển slide trong khung xem bên dưới theo đúng các thời điểm đã mapping, để kiểm tra trước khi xuất video thật.</span>
+
+    <div>
+      <label for="video-resolution">Độ phân giải video</label>
+      <select id="video-resolution">
+        <option value="1280x720">HD 720p (1280x720)</option>
+        <option value="1920x1080" selected>Full HD 1080p (1920x1080)</option>
+        <option value="3840x2160">4K (3840x2160)</option>
+      </select>
+      <span class="hint-small">4K cho chất lượng nét nhất (phù hợp YouTube) nhưng chụp slide + ghi video sẽ chậm hơn và tốn RAM hơn, đặc biệt nếu có nhiều slide.</span>
+    </div>
+    <div class="panel-actions" style="margin-top:10px;">
+      <button class="btn btn-zip" id="export-video-btn" onclick="exportVideo()">🎬 Xuất video (WebM)</button>
+      <button class="btn" id="export-stop-btn" onclick="stopExportVideo()" disabled>⏹ Dừng xuất</button>
+    </div>
+    <span class="status" id="video-status"></span>
+    <video id="export-result-video" controls style="width:100%; display:none; margin-top:8px; border-radius:6px;"></video>
+    <button class="btn btn-zip" id="download-video-btn" style="display:none; margin-top:6px;">⬇️ Tải video (.webm)</button>
+    <span class="hint-small">Video xuất ra ở định dạng WebM (VP9/Opus), có sẵn âm thanh — YouTube nhận trực tiếp file này khi tải lên.</span>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-header" onclick="togglePanel(this)">
+    <span class="panel-title">🎚 Định dạng nội dung slide</span>
+    <span class="panel-arrow">▾</span>
+  </div>
+  <div class="panel-body">
+  <div class="panel-row">
+    <div>
+      <label for="align-h">Canh ngang</label>
+      <select id="align-h" onchange="applySlideStyle()">
+        <option value="left">Trái</option>
+        <option value="center">Giữa</option>
+        <option value="right">Phải</option>
+      </select>
+    </div>
+    <div>
+      <label for="align-v">Canh dọc</label>
+      <select id="align-v" onchange="applySlideStyle()">
+        <option value="flex-start">Trên</option>
+        <option value="center" selected>Giữa</option>
+        <option value="flex-end">Dưới</option>
+      </select>
+    </div>
+  </div>
+  <div class="panel-row">
+    <div>
+      <label for="pad-top">Lề trên (px)</label>
+      <input type="number" id="pad-top" value="54" min="0" oninput="applySlideStyle()">
+    </div>
+    <div>
+      <label for="pad-right">Lề phải (px)</label>
+      <input type="number" id="pad-right" value="90" min="0" oninput="applySlideStyle()">
+    </div>
+  </div>
+  <div class="panel-row">
+    <div>
+      <label for="pad-bottom">Lề dưới (px)</label>
+      <input type="number" id="pad-bottom" value="54" min="0" oninput="applySlideStyle()">
+    </div>
+    <div>
+      <label for="pad-left">Lề trái (px)</label>
+      <input type="number" id="pad-left" value="90" min="0" oninput="applySlideStyle()">
+    </div>
+  </div>
+  <div class="panel-row">
+    <div>
+      <label for="font-family">Font chữ</label>
+      <select id="font-family" onchange="applySlideStyle()">
+        <option value="'Noto Serif JP', serif">Noto Serif JP (mặc định)</option>
+        <option value="'Noto Sans JP', sans-serif">Noto Sans JP</option>
+        <option value="'M PLUS Rounded 1c', sans-serif">M PLUS Rounded 1c</option>
+        <option value="'Klee One', cursive">Klee One</option>
+        <option value="'Shippori Mincho', serif">Shippori Mincho</option>
+        <option value="'Yuji Syuku', serif">Yuji Syuku</option>
+      </select>
+    </div>
+    <div>
+      <label for="font-size">Cỡ chữ (px, để trống = tự responsive)</label>
+      <input type="number" id="font-size" placeholder="VD: 40" min="8" oninput="applySlideStyle()">
+    </div>
+  </div>
+  <div class="panel-actions">
+    <button class="btn" onclick="resetSlideStyle()">↺ Khôi phục mặc định</button>
+    <span class="hint-small">Furigana (ruby) tự co giãn theo cỡ chữ và đổi theo font đã chọn.</span>
+  </div>
+  </div>
+</div>
+
+<div class="ui-bar">
+  <button class="nav-btn" id="prev" onclick="move(-1)" disabled>← 前へ</button>
+  <div class="counter"><input type="number" id="cur-input" min="1" value="0" onchange="goToSlide()" onkeydown="if(event.key==='Enter') goToSlide()"> / <span id="tot">0</span></div>
+  <button class="nav-btn" id="next" onclick="move(1)" disabled>次へ →</button>
+</div>
+
+<div class="slide-wrapper">
+  <div class="aspect" id="stage"></div>
+</div>
+
+<p class="hint">← → キーボードで移動 ／ スライドをクリックで次へ</p>
+
+<div class="slide-edit-box">
+  <label for="slide-edit-textarea">Nội dung slide hiện tại (có thể sửa trực tiếp, dùng cú pháp 漢字[かんじ] cho furigana)</label>
+  <textarea id="slide-edit-textarea" placeholder="Tạo slide trước để xem nội dung."></textarea>
+  <div class="panel-actions" style="margin-top: 6px;">
+    <button class="btn" onclick="copySlideEditBox()">📋 Sao chép nội dung</button>
+    <button class="btn btn-primary" onclick="applySlideEdit()">💾 Áp dụng vào slide</button>
+    <span class="status" id="slide-edit-status"></span>
+  </div>
+</div>
+
+<script>
+let slides = [];
+let slideTexts = [];
+let slideGroups = [];
+let cur = 0;
+const stage = document.getElementById('stage');
+const statusEl = document.getElementById('status');
+const mapAudioEl = document.getElementById('map-audio');
+
+let audioDataUrl = '';
+let slideTimestamps = [];
+let markingActive = false;
+let markIndex = 0;
+let previewActive = false;
+let previewRAF = null;
+let audioCtx = null;
+let mediaSourceNode = null;
+let mediaDestNode = null;
+let exportCancelled = false;
+let exportRAF = null;
+let exportImages = [];
+
+const MAX_CHARS_PER_LINE = 20;
+const MAX_LINES_PER_SLIDE = 4;
+const MAX_SENTENCES_PER_SLIDE = 2;
+
+function togglePanel(headerEl) {
+  headerEl.closest('.panel').classList.toggle('collapsed');
+}
+
+function applySlideStyle() {
+  const alignH = document.getElementById('align-h').value;
+  const alignV = document.getElementById('align-v').value;
+  const padTop = document.getElementById('pad-top').value || 0;
+  const padRight = document.getElementById('pad-right').value || 0;
+  const padBottom = document.getElementById('pad-bottom').value || 0;
+  const padLeft = document.getElementById('pad-left').value || 0;
+  const fontFamily = document.getElementById('font-family').value;
+  const fontSize = document.getElementById('font-size').value;
+
+  const justify = alignH === 'left' ? 'flex-start' : alignH === 'right' ? 'flex-end' : 'center';
+
+  let css = `
+    .slide.active, .slide { align-items: ${alignV}; justify-content: ${justify}; }
+    .text-area { text-align: ${alignH}; padding: ${padTop}px ${padRight}px ${padBottom}px ${padLeft}px; }
+    .sentence, ruby rt { font-family: ${fontFamily}; }
+  `;
+  if (fontSize) {
+    css += `.sentence { font-size: ${fontSize}px; }`;
+  }
+  document.getElementById('dynamic-style').textContent = css;
+}
+
+function resetSlideStyle() {
+  document.getElementById('align-h').value = 'left';
+  document.getElementById('align-v').value = 'center';
+  document.getElementById('pad-top').value = 54;
+  document.getElementById('pad-right').value = 90;
+  document.getElementById('pad-bottom').value = 54;
+  document.getElementById('pad-left').value = 90;
+  document.getElementById('font-family').value = "'Noto Serif JP', serif";
+  document.getElementById('font-size').value = '';
+  applySlideStyle();
+  scheduleAutosave();
+}
+
+function toggleKeyVisibility() {
+  const input = document.getElementById('img-key');
+  const btn = document.getElementById('key-eye-btn');
+  const hidden = input.type === 'password';
+  input.type = hidden ? 'text' : 'password';
+  btn.textContent = hidden ? '🙈' : '👁';
+}
+
+function setModelOptions(models, statusText) {
+  const select = document.getElementById('img-model');
+  const modelStatus = document.getElementById('model-status');
+  if (models && models.length) {
+    select.innerHTML = models.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join('');
+  }
+  modelStatus.textContent = statusText || '';
+}
+
+async function fetchModelList() {
+  const provider = document.getElementById('img-provider').value;
+  const apiKey = document.getElementById('img-key').value.trim();
+  const modelStatus = document.getElementById('model-status');
+  if (!apiKey) return;
+
+  modelStatus.textContent = 'Đang lấy danh sách model...';
+  try {
+    if (provider === 'gemini') {
+      const models = await fetchGeminiModels(apiKey);
+      setModelOptions(models, `Đã tải ${models.length} model.`);
+    } else if (provider === 'openai') {
+      const models = await fetchOpenAiModels(apiKey);
+      setModelOptions(models, `Đã tải ${models.length} model.`);
+    } else if (provider === 'claude') {
+      const models = await fetchClaudeModels(apiKey);
+      setModelOptions(models, `Đã tải ${models.length} model. (Lưu ý: Claude không có model tạo ảnh)`);
+    }
+  } catch (e) {
+    modelStatus.textContent = `Không lấy được danh sách model: ${e.message}`;
+  }
+}
+
+async function fetchGeminiModels(apiKey) {
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  const all = (data.models || [])
+    .filter(m => (m.supportedGenerationMethods || []).includes('generateContent'))
+    .map(m => m.name.replace(/^models\//, ''));
+  const imageModels = all.filter(n => /image/i.test(n));
+  const list = imageModels.length ? imageModels : all;
+  list.sort();
+  return list;
+}
+
+async function fetchOpenAiModels(apiKey) {
+  const res = await fetch('https://api.openai.com/v1/models', {
+    headers: { Authorization: `Bearer ${apiKey}` }
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  const all = (data.data || []).map(m => m.id);
+  const imageModels = all.filter(n => /image|dall-e/i.test(n));
+  const list = (imageModels.length ? imageModels : all).sort();
+  return list;
+}
+
+async function fetchClaudeModels(apiKey) {
+  const res = await fetch('https://api.anthropic.com/v1/models', {
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    }
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  return (data.data || []).map(m => m.id).sort();
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function visibleLen(raw) {
+  return raw.replace(/\[[^\[\]]+\]/g, '').length;
+}
+
+function estimatedLines(raw) {
+  return Math.max(1, Math.ceil(visibleLen(raw) / MAX_CHARS_PER_LINE));
+}
+
+function toRubyHtml(raw) {
+  return escapeHtml(raw).replace(/([一-鿿々]+)\[([^\[\]]+)\]/g, '<ruby>$1<rt>$2</rt></ruby>');
+}
+
+function splitIntoSentenceUnits(rawText) {
+  const lines = rawText.split('\n');
+  const units = [];
+  let pendingBreak = false;
+  for (const line of lines) {
+    if (line.trim() === '') { pendingBreak = true; continue; }
+    const parts = line.match(/[^。！？]*[。！？]」?|[^。！？]+$/g) || [line];
+    for (const part of parts) {
+      if (!part.trim()) continue;
+      units.push({ text: part, breakBefore: pendingBreak });
+      pendingBreak = false;
+    }
+  }
+  return units;
+}
+
+function buildSlideGroups(rawText) {
+  const units = splitIntoSentenceUnits(rawText);
+  const groups = [];
+  let cur = [];
+  let curLines = 0;
+  for (const unit of units) {
+    const estLines = estimatedLines(unit.text);
+    if (cur.length > 0 && (unit.breakBefore || cur.length >= MAX_SENTENCES_PER_SLIDE || curLines + estLines > MAX_LINES_PER_SLIDE)) {
+      groups.push(cur);
+      cur = [];
+      curLines = 0;
+    }
+    cur.push(unit.text);
+    curLines += estLines;
+  }
+  if (cur.length) groups.push(cur);
+  return groups;
+}
+
+function slideTemplate(group, idx, titlePrefix, sectionLabel) {
+  const num = String(idx + 1).padStart(2, '0');
+  const sentences = group.map(s => `<span class="sentence">${toRubyHtml(s)}</span>`).join('\n    ');
+  return `
+<div class="slide${idx === 0 ? ' active' : ''}">
+  <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
+  <div class="slide-num" contenteditable="true" spellcheck="false" onclick="event.stopPropagation()" onpointerdown="event.stopPropagation()" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();}">${escapeHtml(titlePrefix)}　No.${num}</div>
+  <div class="text-area">
+    ${sentences}
+  </div>
+  <div class="section-label">${escapeHtml(sectionLabel)}</div>
+</div>`;
+}
+
+function generateSlides() {
+  const raw = document.getElementById('raw-input').value;
+  const titlePrefix = document.getElementById('title-input').value || 'タイトル';
+  const sectionLabel = document.getElementById('label-input').value || '';
+  const groups = buildSlideGroups(raw);
+
+  if (!groups.length) {
+    statusEl.textContent = 'Vui lòng nhập nội dung trước.';
+    return;
+  }
+
+  stage.innerHTML = groups.map((g, i) => slideTemplate(g, i, titlePrefix, sectionLabel)).join('');
+  slides = Array.from(stage.querySelectorAll('.slide'));
+  slideGroups = groups.map(g => g.slice());
+  slideTexts = groups.map(g => g.map(s => s.replace(/\[[^\[\]]+\]/g, '')).join(' '));
+  cur = 0;
+  document.getElementById('tot').textContent = slides.length;
+  document.getElementById('cur-input').max = slides.length;
+  document.getElementById('cur-input').value = 1;
+  document.getElementById('prev').disabled = true;
+  document.getElementById('next').disabled = slides.length <= 1;
+  document.getElementById('zip-btn').disabled = false;
+  document.getElementById('pptx-btn').disabled = false;
+  statusEl.textContent = `Đã tạo ${slides.length} slide.`;
+  document.getElementById('slide-range').value = slides.length ? `1-${slides.length}` : '';
+  updateSlideRangeInfo();
+  document.getElementById('download-range').value = '';
+  updateDownloadRangeInfo();
+  document.getElementById('img-btn').disabled = false;
+  updateSlideEditBox();
+  resetMarks();
+  scheduleAutosave();
+}
+
+function parseSlideRange(str, maxN) {
+  const result = new Set();
+  if (!str) return [];
+  for (let part of str.split(',')) {
+    part = part.trim();
+    if (!part) continue;
+    const rangeMatch = part.match(/^(\d+)\s*-\s*(\d+)$/);
+    if (rangeMatch) {
+      let a = parseInt(rangeMatch[1], 10);
+      let b = parseInt(rangeMatch[2], 10);
+      if (a > b) [a, b] = [b, a];
+      for (let i = a; i <= b; i++) {
+        if (i >= 1 && i <= maxN) result.add(i - 1);
+      }
+    } else {
+      const n = parseInt(part, 10);
+      if (!isNaN(n) && n >= 1 && n <= maxN) result.add(n - 1);
+    }
+  }
+  return Array.from(result).sort((a, b) => a - b);
+}
+
+function updateSlideRangeInfo() {
+  const info = document.getElementById('slide-range-info');
+  if (!slides.length) { info.textContent = 'Tạo slide trước để chọn.'; return; }
+  const sel = parseSlideRange(document.getElementById('slide-range').value, slides.length);
+  info.textContent = sel.length ? `Đã chọn ${sel.length}/${slides.length} slide.` : 'Chưa chọn slide nào.';
+}
+
+function getDownloadIndices() {
+  const raw = document.getElementById('download-range').value.trim();
+  if (!raw) return slides.map((_, i) => i);
+  return parseSlideRange(raw, slides.length);
+}
+
+function updateDownloadRangeInfo() {
+  const info = document.getElementById('download-range-info');
+  if (!slides.length) { info.textContent = 'Tạo slide trước để chọn.'; return; }
+  const raw = document.getElementById('download-range').value.trim();
+  if (!raw) { info.textContent = `Sẽ tải tất cả ${slides.length} slide.`; return; }
+  const sel = parseSlideRange(raw, slides.length);
+  info.textContent = sel.length ? `Sẽ tải ${sel.length}/${slides.length} slide.` : 'Không có slide hợp lệ trong dải đã nhập.';
+}
+
+function selectAllDownloadRange() {
+  document.getElementById('download-range').value = slides.length ? `1-${slides.length}` : '';
+  updateDownloadRangeInfo();
+  scheduleAutosave();
+}
+
+function clearDownloadRange() {
+  document.getElementById('download-range').value = '';
+  updateDownloadRangeInfo();
+  scheduleAutosave();
+}
+
+function selectAllSlides() {
+  document.getElementById('slide-range').value = slides.length ? `1-${slides.length}` : '';
+  updateSlideRangeInfo();
+  scheduleAutosave();
+}
+
+function deselectAllSlides() {
+  document.getElementById('slide-range').value = '';
+  updateSlideRangeInfo();
+  scheduleAutosave();
+}
+
+function buildImagePrompt(slideText, complexity, hasText, noBorder, extraPrompt) {
+  const styleParts = [
+    'phong cách minh hoạ vector (vector illustration, flat vector art), đường nét rõ, màu sắc tươi sáng, nền đơn giản',
+    complexity === 'complex' ? 'nhiều chi tiết, bối cảnh phong phú' : 'tối thiểu chi tiết, bố cục đơn giản, gọn',
+    hasText === 'yes' ? 'có thể thêm chữ/ký tự ngắn liên quan trong ảnh' : 'không có chữ, không có ký tự, không có text nào trong ảnh'
+  ];
+  if (noBorder) {
+    styleParts.push('hình ảnh tràn đầy toàn bộ khung (full bleed), không có viền, không có khung viền trắng hay viền màu nào quanh ảnh, nội dung sát mép ảnh');
+  }
+  if (extraPrompt) {
+    styleParts.push(extraPrompt);
+  }
+  return `Vẽ một hình minh hoạ thể hiện nội dung câu tiếng Nhật sau: "${slideText}". ${styleParts.join(', ')}.`;
+}
+
+async function generateImages() {
+  const provider = document.getElementById('img-provider').value;
+  const apiKey = document.getElementById('img-key').value.trim();
+  const model = document.getElementById('img-model').value.trim();
+  const complexity = document.getElementById('img-complexity').value;
+  const hasText = document.getElementById('img-text').value;
+  const noBorder = document.getElementById('img-no-border').checked;
+  const extraPrompt = document.getElementById('img-extra-prompt').value.trim();
+  const imgStatus = document.getElementById('img-status');
+  const selected = parseSlideRange(document.getElementById('slide-range').value, slides.length);
+
+  if (provider !== 'gemini') {
+    imgStatus.textContent = provider === 'claude'
+      ? 'Claude (Anthropic) không có API tạo ảnh — chọn Gemini.'
+      : 'OpenAI bị chặn CORS khi gọi trực tiếp từ trình duyệt (không backend) — chọn Gemini.';
+    return;
+  }
+  if (!apiKey) { imgStatus.textContent = 'Vui lòng nhập API key.'; return; }
+  if (!selected.length) { imgStatus.textContent = 'Vui lòng chọn ít nhất 1 slide.'; return; }
+
+  const btn = document.getElementById('img-btn');
+  const stopBtn = document.getElementById('img-stop-btn');
+  btn.disabled = true;
+  stopBtn.disabled = false;
+  stopRequested = false;
+  let okCount = 0;
+  let wasStopped = false;
+  for (const idx of selected) {
+    if (stopRequested) { wasStopped = true; break; }
+    imgStatus.textContent = `Đang tạo ảnh cho slide ${idx + 1}/${slides.length}...`;
+    try {
+      currentAbortController = new AbortController();
+      const prompt = buildImagePrompt(slideTexts[idx] || '', complexity, hasText, noBorder, extraPrompt);
+      const dataUrl = await callGeminiImage(apiKey, model, prompt, currentAbortController.signal);
+      setSlideIllust(idx, dataUrl);
+      okCount++;
+    } catch (e) {
+      if (e.name === 'AbortError') { wasStopped = true; break; }
+      imgStatus.textContent = `Lỗi ở slide ${idx + 1}: ${e.message}`;
+      await new Promise(r => setTimeout(r, 1500));
+    }
+  }
+  currentAbortController = null;
+  imgStatus.textContent = wasStopped
+    ? `Đã dừng. Hoàn tất ${okCount}/${selected.length} slide trước khi dừng.`
+    : `Hoàn tất: ${okCount}/${selected.length} slide đã có ảnh AI.`;
+  stopRequested = false;
+  btn.disabled = false;
+  stopBtn.disabled = true;
+}
+
+async function downloadAiImages() {
+  const imgStatus = document.getElementById('img-status');
+  const items = [];
+  slides.forEach((slide, idx) => {
+    const illust = slide.querySelector('.illust[data-ai="1"]');
+    const img = illust && illust.querySelector('img');
+    if (img && img.src) items.push({ idx, src: img.src });
+  });
+
+  if (!items.length) {
+    imgStatus.textContent = 'Chưa có ảnh AI nào được tạo để tải. Hãy tạo ảnh trước.';
+    return;
+  }
+
+  const downloadBtn = document.getElementById('img-download-btn');
+  downloadBtn.disabled = true;
+  try {
+    if (items.length === 1) {
+      const blob = await (await fetch(items[0].src)).blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `slide_${String(items[0].idx + 1).padStart(2, '0')}_ai.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      imgStatus.textContent = 'Hoàn tất! Đã tải 1 ảnh AI.';
+    } else {
+      imgStatus.textContent = `Đang đóng gói ${items.length} ảnh AI...`;
+      const zip = new JSZip();
+      for (const item of items) {
+        const blob = await (await fetch(item.src)).blob();
+        zip.file(`slide_${String(item.idx + 1).padStart(2, '0')}_ai.png`, blob);
+      }
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(zipBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'ai_images.zip';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      imgStatus.textContent = `Hoàn tất! Đã tải ${items.length} ảnh AI trong ai_images.zip.`;
+    }
+  } catch (e) {
+    imgStatus.textContent = 'Lỗi khi tải ảnh AI: ' + e.message;
+  }
+  downloadBtn.disabled = false;
+}
+
+let stopRequested = false;
+let currentAbortController = null;
+
+function stopImageGeneration() {
+  stopRequested = true;
+  if (currentAbortController) currentAbortController.abort();
+}
+
+async function callGeminiImage(apiKey, model, prompt, signal) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { responseModalities: ['TEXT', 'IMAGE'] }
+    }),
+    signal
+  });
+  if (!res.ok) {
+    const errBody = await res.text();
+    throw new Error(`HTTP ${res.status} — ${errBody.slice(0, 200)}`);
+  }
+  const data = await res.json();
+  const parts = data?.candidates?.[0]?.content?.parts || [];
+  const imgPart = parts.find(p => p.inlineData);
+  if (!imgPart) throw new Error('API không trả về ảnh (kiểm tra tên model).');
+  return `data:${imgPart.inlineData.mimeType};base64,${imgPart.inlineData.data}`;
+}
+
+function bindIllustEvents(illust) {
+  illust.addEventListener('pointerdown', e => startDrag(e, illust, 'move'));
+  illust.addEventListener('click', e => e.stopPropagation());
+  const handle = illust.querySelector('.resize-handle');
+  if (handle) {
+    handle.addEventListener('pointerdown', e => startDrag(e, illust, 'resize'));
+    handle.addEventListener('click', e => e.stopPropagation());
+  }
+  const delBtn = illust.querySelector('.illust-del-btn');
+  if (delBtn) {
+    delBtn.addEventListener('pointerdown', e => e.stopPropagation());
+    delBtn.addEventListener('click', e => { e.stopPropagation(); illust.remove(); scheduleAutosave(); });
+  }
+}
+
+function createDraggableImage(dataUrl, leftPct, topPct, widthPct) {
+  const illust = document.createElement('div');
+  illust.className = 'illust';
+  illust.style.position = 'absolute';
+  illust.style.right = 'auto';
+  illust.style.transform = 'none';
+  illust.style.left = leftPct + '%';
+  illust.style.top = topPct + '%';
+  illust.style.width = widthPct + '%';
+  illust.style.cursor = 'move';
+  illust.style.touchAction = 'none';
+
+  const img = document.createElement('img');
+  img.src = dataUrl;
+  img.alt = 'image';
+  img.draggable = false;
+  illust.appendChild(img);
+
+  const handle = document.createElement('div');
+  handle.className = 'resize-handle';
+  illust.appendChild(handle);
+
+  const delBtn = document.createElement('div');
+  delBtn.className = 'illust-del-btn';
+  delBtn.textContent = '✕';
+  delBtn.title = 'Xoá ảnh này';
+  illust.appendChild(delBtn);
+
+  bindIllustEvents(illust);
+  return illust;
+}
+
+function setSlideIllust(idx, dataUrl) {
+  const slide = slides[idx];
+  if (!slide) return;
+  let illust = slide.querySelector('.illust[data-ai="1"]');
+  if (!illust) {
+    illust = createDraggableImage(dataUrl, 80, 32, 18);
+    illust.dataset.ai = '1';
+    slide.appendChild(illust);
+  } else {
+    illust.querySelector('img').src = dataUrl;
+  }
+  scheduleAutosave();
+}
+
+function addUploadedImageToSlide(slide, dataUrl, clientX, clientY) {
+  const rect = slide.getBoundingClientRect();
+  const widthPct = 22;
+  let leftPct = ((clientX - rect.left) / rect.width) * 100 - widthPct / 2;
+  let topPct = ((clientY - rect.top) / rect.height) * 100 - 10;
+  leftPct = Math.max(0, Math.min(100 - widthPct, leftPct));
+  topPct = Math.max(0, Math.min(85, topPct));
+  const illust = createDraggableImage(dataUrl, leftPct, topPct, widthPct);
+  slide.appendChild(illust);
+}
+
+let uploadedImages = {};
+let uploadedImageNames = {};
+let uploadIdCounter = 0;
+
+function addTrayThumb(id, dataUrl, title) {
+  const tray = document.getElementById('upload-tray');
+  const emptyHint = tray.querySelector('.tray-empty-hint');
+  if (emptyHint) emptyHint.remove();
+  const thumb = document.createElement('img');
+  thumb.className = 'upload-thumb';
+  thumb.src = dataUrl;
+  thumb.draggable = true;
+  thumb.title = title ? `${title} — kéo ảnh này vào slide` : 'Kéo ảnh này vào slide';
+  thumb.dataset.imgId = id;
+  thumb.addEventListener('dragstart', ev => {
+    ev.dataTransfer.setData('text/plain', id);
+    ev.dataTransfer.effectAllowed = 'copy';
+  });
+  tray.appendChild(thumb);
+}
+
+function handleUploadFiles(e) {
+  const files = Array.from(e.target.files || []);
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const id = 'up' + (uploadIdCounter++);
+      uploadedImages[id] = reader.result;
+      uploadedImageNames[id] = file.name;
+      addTrayThumb(id, reader.result, file.name);
+      scheduleAutosave();
+    };
+    reader.readAsDataURL(file);
+  });
+  e.target.value = '';
+}
+
+function setSlideMappedImage(idx, dataUrl) {
+  const slide = slides[idx];
+  if (!slide) return;
+  let illust = slide.querySelector('.illust[data-mapped="1"]');
+  if (!illust) {
+    illust = createDraggableImage(dataUrl, 80, 32, 18);
+    illust.dataset.mapped = '1';
+    slide.appendChild(illust);
+  } else {
+    illust.querySelector('img').src = dataUrl;
+  }
+}
+
+function mapUploadedImagesToSlides() {
+  const mapStatus = document.getElementById('img-map-status');
+  if (!slides.length) { mapStatus.textContent = 'Vui lòng tạo slide trước.'; return; }
+  const prefix = document.getElementById('img-map-prefix').value.trim();
+  if (!prefix) { mapStatus.textContent = 'Vui lòng nhập tiền tố tên ảnh.'; return; }
+  if (!Object.keys(uploadedImages).length) { mapStatus.textContent = 'Chưa có ảnh nào trong khay tạm, hãy tải ảnh lên trước.'; return; }
+
+  const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp('^' + escapedPrefix + '_(\\d+)\\.[a-zA-Z0-9]+$', 'i');
+
+  let mapped = 0;
+  const unmatched = [];
+  const outOfRange = [];
+  for (const id of Object.keys(uploadedImages)) {
+    const name = uploadedImageNames[id] || '';
+    const m = name.match(re);
+    if (!m) { unmatched.push(name || id); continue; }
+    const idx = parseInt(m[1], 10) - 1;
+    if (idx < 0 || idx >= slides.length) { outOfRange.push(name); continue; }
+    setSlideMappedImage(idx, uploadedImages[id]);
+    mapped++;
+  }
+
+  let msg = `Đã mapping ${mapped} ảnh vào slide.`;
+  if (unmatched.length) msg += ` ${unmatched.length} ảnh không khớp định dạng tên "${prefix}_số.ext".`;
+  if (outOfRange.length) msg += ` ${outOfRange.length} ảnh có số vượt quá ${slides.length} slide hiện có.`;
+  mapStatus.textContent = msg;
+  scheduleAutosave();
+}
+
+stage.addEventListener('dragover', e => { e.preventDefault(); });
+stage.addEventListener('drop', e => {
+  e.preventDefault();
+  const id = e.dataTransfer.getData('text/plain');
+  const dataUrl = uploadedImages[id];
+  if (!dataUrl || !slides.length) return;
+  addUploadedImageToSlide(slides[cur], dataUrl, e.clientX, e.clientY);
+  scheduleAutosave();
+});
+
+let dragState = null;
+
+function startDrag(e, el, mode) {
+  e.preventDefault();
+  e.stopPropagation();
+  const slide = el.closest('.slide');
+  if (!slide) return;
+  const slideRect = slide.getBoundingClientRect();
+  const elRect = el.getBoundingClientRect();
+  dragState = {
+    el, mode, slideRect,
+    startX: e.clientX,
+    startY: e.clientY,
+    startLeftPct: ((elRect.left - slideRect.left) / slideRect.width) * 100,
+    startTopPct: ((elRect.top - slideRect.top) / slideRect.height) * 100,
+    startWidthPct: (elRect.width / slideRect.width) * 100
+  };
+  document.addEventListener('pointermove', onDragMove);
+  document.addEventListener('pointerup', onDragEnd);
+}
+
+function onDragMove(e) {
+  if (!dragState) return;
+  const { el, mode, slideRect, startX, startY, startLeftPct, startTopPct, startWidthPct } = dragState;
+  const dxPct = ((e.clientX - startX) / slideRect.width) * 100;
+  const dyPct = ((e.clientY - startY) / slideRect.height) * 100;
+  if (mode === 'move') {
+    const newLeft = Math.max(0, Math.min(100 - startWidthPct, startLeftPct + dxPct));
+    const newTop = Math.max(0, Math.min(95, startTopPct + dyPct));
+    el.style.left = newLeft + '%';
+    el.style.top = newTop + '%';
+  } else if (mode === 'resize') {
+    const newWidth = Math.max(5, Math.min(100, startWidthPct + dxPct));
+    el.style.width = newWidth + '%';
+  }
+}
+
+function onDragEnd() {
+  dragState = null;
+  document.removeEventListener('pointermove', onDragMove);
+  document.removeEventListener('pointerup', onDragEnd);
+  scheduleAutosave();
+}
+
+function show(n) {
+  if (!slides.length) return;
+  slides[cur].classList.remove('active');
+  cur = (n + slides.length) % slides.length;
+  slides[cur].classList.add('active');
+  document.getElementById('cur-input').value = cur + 1;
+  document.getElementById('prev').disabled = cur === 0;
+  document.getElementById('next').disabled = cur === slides.length - 1;
+  updateSlideEditBox();
+  scheduleAutosave();
+}
+
+function move(dir) { show(cur + dir); }
+
+function updateSlideEditBox() {
+  const box = document.getElementById('slide-edit-textarea');
+  const status = document.getElementById('slide-edit-status');
+  if (box) {
+    box.value = (slideGroups[cur] || []).join('\n');
+    if (status) status.textContent = '';
+  }
+  updateNumberedContentBox();
+}
+
+function buildNumberedSlideText() {
+  if (!slideGroups.length) return '';
+  const plain = document.getElementById('numbered-content-plain');
+  const stripFurigana = plain && plain.checked;
+  return slideGroups.map((g, i) => {
+    let text = g.join('');
+    if (stripFurigana) text = text.replace(/\[[^\[\]]+\]/g, '');
+    return `${i + 1} : ${text}`;
+  }).join('\n\n');
+}
+
+function updateNumberedContentBox() {
+  const box = document.getElementById('numbered-content-textarea');
+  if (!box) return;
+  box.value = buildNumberedSlideText();
+}
+
+function copyNumberedContent() {
+  const box = document.getElementById('numbered-content-textarea');
+  const status = document.getElementById('numbered-content-status');
+  const text = box.value;
+  if (!text) { status.textContent = 'Chưa có nội dung để sao chép.'; return; }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text)
+      .then(() => { status.textContent = 'Đã sao chép nội dung đã đánh số.'; })
+      .catch(() => { fallbackCopy(box, status); });
+  } else {
+    fallbackCopy(box, status);
+  }
+}
+
+function applySlideEdit() {
+  if (!slides.length) return;
+  const box = document.getElementById('slide-edit-textarea');
+  const status = document.getElementById('slide-edit-status');
+  const lines = box.value.split('\n').map(l => l.trim()).filter(l => l.length);
+  if (!lines.length) {
+    status.textContent = 'Nội dung không được để trống.';
+    return;
+  }
+  slideGroups[cur] = lines;
+  slideTexts[cur] = lines.map(s => s.replace(/\[[^\[\]]+\]/g, '')).join(' ');
+  const textArea = slides[cur].querySelector('.text-area');
+  textArea.innerHTML = lines.map(s => `<span class="sentence">${toRubyHtml(s)}</span>`).join('\n    ');
+  status.textContent = 'Đã áp dụng vào slide.';
+  updateNumberedContentBox();
+  scheduleAutosave();
+}
+
+function copySlideEditBox() {
+  const box = document.getElementById('slide-edit-textarea');
+  const status = document.getElementById('slide-edit-status');
+  const text = box.value;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text)
+      .then(() => { status.textContent = 'Đã sao chép nội dung slide.'; })
+      .catch(() => { fallbackCopy(box, status); });
+  } else {
+    fallbackCopy(box, status);
+  }
+}
+
+function fallbackCopy(box, status) {
+  box.select();
+  try {
+    document.execCommand('copy');
+    status.textContent = 'Đã sao chép nội dung slide.';
+  } catch (e) {
+    status.textContent = 'Không thể sao chép tự động, vui lòng copy thủ công.';
+  }
+}
+
+function goToSlide() {
+  const input = document.getElementById('cur-input');
+  if (!slides.length) return;
+  let n = parseInt(input.value, 10);
+  if (isNaN(n)) n = cur + 1;
+  n = Math.max(1, Math.min(slides.length, n));
+  input.value = n;
+  show(n - 1);
+}
+
+document.addEventListener('keydown', e => {
+  const tag = (e.target.tagName || '').toLowerCase();
+  const inField = tag === 'input' || tag === 'textarea';
+  if (e.code === 'Space' && markingActive && !inField) {
+    e.preventDefault();
+    markNextSlide();
+    return;
+  }
+  if (inField) return;
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') move(1);
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') move(-1);
+});
+
+stage.addEventListener('click', () => {
+  if (slides.length && cur < slides.length - 1) move(1);
+});
+
+function waitFrame() {
+  return new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+}
+
+/* ===== Mapping Audio & Xuất Video ===== */
+
+function handleAudioFile(e) {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    audioDataUrl = reader.result;
+    mapAudioEl.src = audioDataUrl;
+    document.getElementById('audio-status').textContent = `Đã chọn file: ${file.name}`;
+    resetMarks();
+    scheduleAutosave();
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+}
+
+function ensureAudioGraph() {
+  if (audioCtx) {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return;
+  }
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  mediaSourceNode = audioCtx.createMediaElementSource(mapAudioEl);
+  mediaDestNode = audioCtx.createMediaStreamDestination();
+  mediaSourceNode.connect(mediaDestNode);
+  mediaSourceNode.connect(audioCtx.destination);
+}
+
+function formatTime(t) {
+  if (t === null || t === undefined || isNaN(t)) return '';
+  const m = Math.floor(t / 60);
+  const s = (t % 60).toFixed(2);
+  return `${m}:${s.padStart(5, '0')}`;
+}
+
+function parseTime(str) {
+  str = (str || '').trim();
+  if (!str) return null;
+  if (str.includes(':')) {
+    const [m, s] = str.split(':');
+    const mm = parseInt(m, 10) || 0;
+    const ss = parseFloat(s) || 0;
+    return mm * 60 + ss;
+  }
+  const v = parseFloat(str);
+  return isNaN(v) ? null : v;
+}
+
+function rebuildTimestampList() {
+  const container = document.getElementById('timestamp-list');
+  if (!slides.length) { container.innerHTML = '<span class="hint-small">Tạo slide trước để mapping.</span>'; return; }
+  if (!slideTimestamps.length || slideTimestamps.length !== slides.length) {
+    slideTimestamps = new Array(slides.length).fill(null);
+    slideTimestamps[0] = 0;
+  }
+  container.innerHTML = slides.map((_, i) => {
+    const excerpt = (slideTexts[i] || '').slice(0, 24);
+    const val = formatTime(slideTimestamps[i]);
+    return `
+    <div class="ts-row">
+      <span class="ts-idx">#${i + 1}</span>
+      <span class="ts-text">${escapeHtml(excerpt)}</span>
+      <input type="text" value="${val}" placeholder="mm:ss" onchange="setTimestamp(${i}, this.value)">
+      <button class="btn btn-sm" onclick="captureCurrentTimeFor(${i})" title="Lấy thời điểm hiện tại của audio">⏱</button>
+      <button class="btn btn-sm" onclick="seekTo(${i})" title="Nhảy audio tới đây">▶</button>
+    </div>`;
+  }).join('');
+}
+
+function setTimestamp(i, value) {
+  slideTimestamps[i] = parseTime(value);
+  scheduleAutosave();
+}
+
+function captureCurrentTimeFor(i) {
+  slideTimestamps[i] = mapAudioEl.currentTime;
+  rebuildTimestampList();
+  scheduleAutosave();
+}
+
+function seekTo(i) {
+  if (slideTimestamps[i] != null) {
+    mapAudioEl.currentTime = slideTimestamps[i];
+    show(i);
+  }
+}
+
+let autoMarkCancelled = false;
+
+async function autoMarkSlides() {
+  if (!slides.length) { alert('Vui lòng tạo slide trước.'); return; }
+  if (!mapAudioEl.src) { alert('Vui lòng chọn file audio trước.'); return; }
+  const progress = document.getElementById('mark-progress');
+  const autoBtn = document.getElementById('auto-mark-btn');
+  const cancelBtn = document.getElementById('auto-mark-cancel-btn');
+  const modelId = document.getElementById('auto-mark-model').value;
+  autoMarkCancelled = false;
+  autoBtn.disabled = true;
+  cancelBtn.disabled = false;
+
+  let whisperResult = null;
+  if (window.__whisperTranscribe) {
+    try {
+      progress.textContent = 'Đang chuẩn bị AI nhận diện giọng nói (chạy ở luồng riêng, không làm đơ trình duyệt)...';
+      const { chunks, duration } = await window.__whisperTranscribe(mapAudioEl.src, modelId, (p) => {
+        if (p && p.status === 'progress' && p.file) {
+          progress.textContent = `Đang tải mô hình AI (${p.file}): ${Math.round(p.progress || 0)}%...`;
+        } else if (p && p.status === 'done') {
+          progress.textContent = 'Đã tải xong mô hình, đang nhận diện giọng nói...';
+        }
+      });
+      if (autoMarkCancelled) { autoBtn.disabled = false; cancelBtn.disabled = true; return; }
+      progress.textContent = 'Đang khớp lời đọc với nội dung từng slide...';
+      whisperResult = computeWhisperTimestamps(chunks, duration);
+    } catch (e) {
+      whisperResult = null;
+      if (autoMarkCancelled) {
+        progress.textContent = 'Đã hủy quá trình tự động đánh dấu.';
+        autoBtn.disabled = false;
+        cancelBtn.disabled = true;
+        return;
+      }
+    }
+  }
+
+  try {
+    if (whisperResult && whisperResult.coverage >= 0.3) {
+      slideTimestamps = whisperResult.timestamps;
+      rebuildTimestampList();
+      progress.textContent = `Đã tự động đánh dấu ${slides.length} slide bằng AI nhận diện giọng nói (khớp ${Math.round(whisperResult.coverage * 100)}% nội dung với audio). Hãy dùng "Xem trước đồng bộ" để kiểm tra, chỉnh lại ở bảng dưới nếu cần.`;
+    } else {
+      slideTimestamps = computeHeuristicTimestamps(await decodeAudioBuffer());
+      rebuildTimestampList();
+      const reason = window.__whisperTranscribe ? 'AI nhận diện giọng nói không khớp đủ nội dung (audio quá nhiễu hoặc khác văn bản)' : 'không tải được mô hình AI (có thể do mất mạng)';
+      progress.textContent = `Không dùng được AI nhận diện giọng nói (${reason}), đã dùng ước lượng theo khoảng lặng + độ dài câu thay thế. Hãy dùng "Xem trước đồng bộ" để kiểm tra, chỉnh lại ở bảng dưới nếu lệch.`;
+    }
+  } catch (e) {
+    progress.textContent = 'Lỗi tự động đánh dấu: ' + e.message;
+  }
+  autoBtn.disabled = false;
+  cancelBtn.disabled = true;
+  scheduleAutosave();
+}
+
+function cancelAutoMark() {
+  autoMarkCancelled = true;
+  if (window.__whisperCancel) window.__whisperCancel();
+  const progress = document.getElementById('mark-progress');
+  progress.textContent = 'Đang hủy...';
+  document.getElementById('auto-mark-btn').disabled = false;
+  document.getElementById('auto-mark-cancel-btn').disabled = true;
+}
+
+async function decodeAudioBuffer() {
+  ensureAudioGraph();
+  const res = await fetch(mapAudioEl.src);
+  const arrayBuffer = await res.arrayBuffer();
+  return await audioCtx.decodeAudioData(arrayBuffer);
+}
+
+function computeProportionalBaseline(duration, n) {
+  const lens = slideTexts.map(t => Math.max(1, (t || '').length));
+  const totalLen = lens.reduce((a, b) => a + b, 0) || 1;
+  const baseline = [0];
+  let acc = 0;
+  for (let i = 0; i < n - 1; i++) {
+    acc += lens[i];
+    baseline.push((acc / totalLen) * duration);
+  }
+  return baseline;
+}
+
+function computeHeuristicTimestamps(audioBuffer) {
+  const duration = audioBuffer.duration;
+  const n = slides.length;
+
+  const channels = [];
+  for (let c = 0; c < audioBuffer.numberOfChannels; c++) channels.push(audioBuffer.getChannelData(c));
+  const sampleRate = audioBuffer.sampleRate;
+  const windowSize = Math.max(1, Math.round(sampleRate * 0.03));
+  const totalSamples = audioBuffer.length;
+  const numWindows = Math.ceil(totalSamples / windowSize);
+  const energy = new Float32Array(numWindows);
+  for (let w = 0; w < numWindows; w++) {
+    const start = w * windowSize;
+    const end = Math.min(start + windowSize, totalSamples);
+    let sum = 0;
+    for (let i = start; i < end; i++) {
+      let v = 0;
+      for (let c = 0; c < channels.length; c++) v += channels[c][i];
+      v /= channels.length;
+      sum += v * v;
+    }
+    energy[w] = Math.sqrt(sum / Math.max(1, end - start));
+  }
+
+  let maxE = 0;
+  for (let i = 0; i < energy.length; i++) if (energy[i] > maxE) maxE = energy[i];
+  const silenceThreshold = maxE * 0.12;
+  const minSilenceWindows = Math.max(1, Math.round(0.15 / 0.03));
+
+  const silenceCenters = [];
+  let runStart = -1;
+  for (let w = 0; w < energy.length; w++) {
+    if (energy[w] <= silenceThreshold) {
+      if (runStart === -1) runStart = w;
+    } else {
+      if (runStart !== -1) {
+        if (w - runStart >= minSilenceWindows) silenceCenters.push(((runStart + w) / 2) * windowSize / sampleRate);
+        runStart = -1;
+      }
+    }
+  }
+  if (runStart !== -1 && numWindows - runStart >= minSilenceWindows) {
+    silenceCenters.push(((runStart + numWindows) / 2) * windowSize / sampleRate);
+  }
+
+  const baseline = computeProportionalBaseline(duration, n);
+  const avgSlideDur = duration / n;
+  const tolerance = Math.max(1.0, avgSlideDur * 0.6);
+  const result = [0];
+  for (let i = 1; i < n; i++) {
+    let best = null;
+    let bestDist = Infinity;
+    for (const c of silenceCenters) {
+      const d = Math.abs(c - baseline[i]);
+      if (d < bestDist && d <= tolerance && c > result[i - 1]) {
+        bestDist = d;
+        best = c;
+      }
+    }
+    let t = best !== null ? best : baseline[i];
+    if (t <= result[i - 1]) t = result[i - 1] + 0.05;
+    result.push(Math.min(t, duration));
+  }
+  return result;
+}
+
+function lcsAlign(refArr, hypArr) {
+  const n = refArr.length, m = hypArr.length;
+  if (n === 0 || m === 0) return [];
+  const dp = [];
+  for (let i = 0; i <= n; i++) dp.push(new Uint16Array(m + 1));
+  for (let i = 1; i <= n; i++) {
+    for (let j = 1; j <= m; j++) {
+      if (refArr[i - 1] === hypArr[j - 1]) dp[i][j] = dp[i - 1][j - 1] + 1;
+      else dp[i][j] = dp[i - 1][j] >= dp[i][j - 1] ? dp[i - 1][j] : dp[i][j - 1];
+    }
+  }
+  const matches = [];
+  let i = n, j = m;
+  while (i > 0 && j > 0) {
+    if (refArr[i - 1] === hypArr[j - 1]) {
+      matches.push([i - 1, j - 1]);
+      i--; j--;
+    } else if (dp[i - 1][j] >= dp[i][j - 1]) {
+      i--;
+    } else {
+      j--;
+    }
+  }
+  matches.reverse();
+  return matches;
+}
+
+function buildHypCharsAndTimes(chunks) {
+  const chars = [];
+  const times = [];
+  let lastTime = 0;
+  for (const chunk of chunks) {
+    const text = (chunk.text || '').replace(/\s/g, '');
+    if (!text) continue;
+    let start = chunk.timestamp && chunk.timestamp[0] != null ? chunk.timestamp[0] : lastTime;
+    let end = chunk.timestamp && chunk.timestamp[1] != null ? chunk.timestamp[1] : start;
+    if (end < start) end = start;
+    const len = text.length;
+    for (let k = 0; k < len; k++) {
+      const t = len > 1 ? start + (end - start) * (k / len) : start;
+      chars.push(text[k]);
+      times.push(t);
+    }
+    lastTime = end;
+  }
+  return { chars, times };
+}
+
+function computeWhisperTimestamps(chunks, duration) {
+  const n = slides.length;
+  const { chars: hypChars, times: hypTimes } = buildHypCharsAndTimes(chunks);
+
+  let combined = '';
+  const startIdx = [0];
+  for (let i = 0; i < n - 1; i++) {
+    combined += slideTexts[i] || '';
+    startIdx.push(combined.length);
+  }
+  combined += slideTexts[n - 1] || '';
+  const refChars = Array.from(combined);
+
+  const matches = lcsAlign(refChars, hypChars);
+  if (!matches.length) return { timestamps: null, coverage: 0 };
+
+  function refIndexToTime(target) {
+    let left = null, right = null;
+    for (const [refIdx, hypIdx] of matches) {
+      if (refIdx === target) return hypTimes[hypIdx];
+      if (refIdx < target) left = [refIdx, hypIdx];
+      if (refIdx > target && right === null) right = [refIdx, hypIdx];
+    }
+    if (left && right) {
+      const ratio = (target - left[0]) / (right[0] - left[0]);
+      return hypTimes[left[1]] + (hypTimes[right[1]] - hypTimes[left[1]]) * ratio;
+    }
+    if (left) return hypTimes[left[1]];
+    if (right) return hypTimes[right[1]];
+    return null;
+  }
+
+  const baseline = computeProportionalBaseline(duration, n);
+  const result = [0];
+  for (let i = 1; i < n; i++) {
+    let t = refIndexToTime(startIdx[i]);
+    if (t === null || isNaN(t) || t <= result[i - 1]) t = Math.max(baseline[i], result[i - 1] + 0.05);
+    result.push(Math.min(t, duration));
+  }
+  const coverage = matches.length / Math.max(1, refChars.length);
+  return { timestamps: result, coverage };
+}
+
+function startMarking() {
+  if (!slides.length) { alert('Vui lòng tạo slide trước.'); return; }
+  if (!mapAudioEl.src) { alert('Vui lòng chọn file audio trước.'); return; }
+  ensureAudioGraph();
+  slideTimestamps = new Array(slides.length).fill(null);
+  slideTimestamps[0] = 0;
+  markIndex = 1;
+  markingActive = true;
+  mapAudioEl.currentTime = 0;
+  mapAudioEl.play();
+  show(0);
+  document.getElementById('start-mark-btn').disabled = true;
+  document.getElementById('mark-btn').disabled = slides.length <= 1;
+  updateMarkUI();
+}
+
+function markNextSlide() {
+  if (!markingActive || markIndex >= slides.length) return;
+  slideTimestamps[markIndex] = mapAudioEl.currentTime;
+  show(markIndex);
+  markIndex++;
+  if (markIndex >= slides.length) {
+    finishMarking();
+  } else {
+    updateMarkUI();
+  }
+  scheduleAutosave();
+}
+
+function finishMarking() {
+  markingActive = false;
+  mapAudioEl.pause();
+  document.getElementById('mark-btn').disabled = true;
+  document.getElementById('start-mark-btn').disabled = false;
+  document.getElementById('mark-progress').textContent = `Đã đánh dấu xong ${slides.length} slide.`;
+  rebuildTimestampList();
+}
+
+function updateMarkUI() {
+  const progress = document.getElementById('mark-progress');
+  if (markingActive) {
+    progress.textContent = `Đang đánh dấu: tiếp theo là slide ${markIndex + 1}/${slides.length} (nhấn nút hoặc phím Space khi lời đọc chuyển sang slide đó).`;
+  }
+  rebuildTimestampList();
+}
+
+function resetMarks() {
+  markingActive = false;
+  markIndex = 0;
+  slideTimestamps = slides.length ? new Array(slides.length).fill(null) : [];
+  if (slides.length) slideTimestamps[0] = 0;
+  const markBtn = document.getElementById('mark-btn');
+  const startBtn = document.getElementById('start-mark-btn');
+  const progress = document.getElementById('mark-progress');
+  if (markBtn) markBtn.disabled = true;
+  if (startBtn) startBtn.disabled = false;
+  if (progress) progress.textContent = '';
+  rebuildTimestampList();
+  scheduleAutosave();
+}
+
+function findIndexForTime(t, ts) {
+  let idx = 0;
+  for (let i = 0; i < ts.length; i++) {
+    if (ts[i] <= t) idx = i; else break;
+  }
+  return idx;
+}
+
+function validateTimestampsForPlayback() {
+  if (!slides.length) { alert('Vui lòng tạo slide trước.'); return null; }
+  if (!mapAudioEl.src) { alert('Vui lòng chọn audio trước.'); return null; }
+  if (!slideTimestamps.length || slideTimestamps.length !== slides.length || slideTimestamps.some(t => t === null || t === undefined)) {
+    alert('Vui lòng mapping (đánh dấu) thời điểm cho tất cả slide trước.');
+    return null;
+  }
+  for (let i = 1; i < slideTimestamps.length; i++) {
+    if (slideTimestamps[i] < slideTimestamps[i - 1]) {
+      alert(`Thời điểm slide ${i + 1} phải lớn hơn hoặc bằng slide ${i}.`);
+      return null;
+    }
+  }
+  return slideTimestamps.slice();
+}
+
+function previewSync() {
+  const ts = validateTimestampsForPlayback();
+  if (!ts) return;
+  ensureAudioGraph();
+  previewActive = true;
+  document.getElementById('preview-btn').disabled = true;
+  document.getElementById('preview-stop-btn').disabled = false;
+  mapAudioEl.currentTime = 0;
+  show(0);
+  mapAudioEl.play();
+  let lastIdx = 0;
+  mapAudioEl.onended = () => stopPreviewSync();
+  function loop() {
+    if (!previewActive) return;
+    if (mapAudioEl.ended) { stopPreviewSync(); return; }
+    const idx = findIndexForTime(mapAudioEl.currentTime, ts);
+    if (idx !== lastIdx) { show(idx); lastIdx = idx; }
+    previewRAF = requestAnimationFrame(loop);
+  }
+  previewRAF = requestAnimationFrame(loop);
+}
+
+function stopPreviewSync() {
+  previewActive = false;
+  if (previewRAF) cancelAnimationFrame(previewRAF);
+  mapAudioEl.pause();
+  mapAudioEl.onended = null;
+  document.getElementById('preview-btn').disabled = false;
+  document.getElementById('preview-stop-btn').disabled = true;
+}
+
+function pickSupportedMime() {
+  const candidates = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
+  for (const c of candidates) {
+    if (window.MediaRecorder && MediaRecorder.isTypeSupported(c)) return c;
+  }
+  return '';
+}
+
+async function captureAllSlideImages(targetWidth) {
+  const images = [];
+  for (let i = 0; i < slides.length; i++) {
+    if (exportCancelled) break;
+    show(i);
+    await waitFrame();
+    const canvas = await html2canvas(slides[i], {
+      width: slides[i].offsetWidth,
+      height: slides[i].offsetHeight,
+      scale: targetWidth / slides[i].offsetWidth,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: '#B8DCF0',
+      logging: false
+    });
+    const img = new Image();
+    img.src = canvas.toDataURL('image/png');
+    await new Promise(res => { img.onload = res; });
+    images.push(img);
+  }
+  return images;
+}
+
+async function exportVideo() {
+  const ts = validateTimestampsForPlayback();
+  if (!ts) return;
+  const videoStatus = document.getElementById('video-status');
+  const exportBtn = document.getElementById('export-video-btn');
+  const stopBtn = document.getElementById('export-stop-btn');
+  exportBtn.disabled = true;
+  stopBtn.disabled = false;
+  exportCancelled = false;
+  const originalActive = cur;
+  const [resW, resH] = document.getElementById('video-resolution').value.split('x').map(Number);
+  try {
+    videoStatus.textContent = `Đang chụp ảnh các slide (${resW}x${resH})...`;
+    exportImages = await captureAllSlideImages(resW);
+    if (exportCancelled) throw new Error('CANCELLED');
+
+    videoStatus.textContent = 'Đang chuẩn bị ghi video...';
+    ensureAudioGraph();
+
+    const canvas = document.createElement('canvas');
+    canvas.width = resW;
+    canvas.height = resH;
+    const ctx = canvas.getContext('2d');
+
+    const videoStream = canvas.captureStream(30);
+    const audioTracks = mediaDestNode.stream.getAudioTracks();
+    const combined = new MediaStream([...videoStream.getVideoTracks(), ...audioTracks]);
+    const mimeType = pickSupportedMime();
+    const videoBitsPerSecond = Math.round(resW * resH * 30 * 0.08);
+    const chunks = [];
+    const recorderOpts = Object.assign({ videoBitsPerSecond }, mimeType ? { mimeType } : {});
+    const recorder = new MediaRecorder(combined, recorderOpts);
+    recorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+    const finished = new Promise(resolve => { recorder.onstop = resolve; });
+
+    mapAudioEl.currentTime = 0;
+    let lastIdx = -1;
+    function drawCurrent() {
+      const idx = findIndexForTime(mapAudioEl.currentTime, ts);
+      if (idx !== lastIdx) {
+        const img = exportImages[idx];
+        if (img) ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        lastIdx = idx;
+      }
+    }
+    drawCurrent();
+    recorder.start();
+    await mapAudioEl.play();
+
+    await new Promise(resolve => {
+      function loop() {
+        if (exportCancelled) { recorder.stop(); resolve(); return; }
+        if (mapAudioEl.ended) { recorder.stop(); resolve(); return; }
+        drawCurrent();
+        videoStatus.textContent = `Đang ghi video... ${formatTime(mapAudioEl.currentTime)} / ${formatTime(mapAudioEl.duration)}`;
+        exportRAF = requestAnimationFrame(loop);
+      }
+      exportRAF = requestAnimationFrame(loop);
+    });
+
+    await finished;
+    mapAudioEl.pause();
+    if (exportCancelled) {
+      videoStatus.textContent = 'Đã dừng xuất video.';
+    } else {
+      const blob = new Blob(chunks, { type: 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      const videoEl = document.getElementById('export-result-video');
+      videoEl.src = url;
+      videoEl.style.display = 'block';
+      const dlBtn = document.getElementById('download-video-btn');
+      dlBtn.style.display = 'inline-block';
+      dlBtn.onclick = () => {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'slide_video.webm';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      };
+      videoStatus.textContent = `Hoàn tất! Video dài ${formatTime(mapAudioEl.duration)}, xem trước bên dưới rồi tải lên YouTube.`;
+    }
+  } catch (e) {
+    if (e.message !== 'CANCELLED') videoStatus.textContent = 'Lỗi khi xuất video: ' + e.message;
+  }
+  show(originalActive);
+  exportBtn.disabled = false;
+  stopBtn.disabled = true;
+}
+
+function stopExportVideo() {
+  exportCancelled = true;
+}
+
+async function downloadAllZip() {
+  if (!slides.length) return;
+  const indices = getDownloadIndices();
+  if (!indices.length) {
+    statusEl.textContent = 'Không có slide hợp lệ trong dải đã chọn để tải.';
+    return;
+  }
+  const genBtn = document.getElementById('gen-btn');
+  const zipBtn = document.getElementById('zip-btn');
+  const originalActive = cur;
+  genBtn.disabled = true;
+  zipBtn.disabled = true;
+  try {
+    const zip = new JSZip();
+    for (let j = 0; j < indices.length; j++) {
+      const i = indices[j];
+      statusEl.textContent = `Đang chụp slide ${i + 1} (${j + 1}/${indices.length})...`;
+      show(i);
+      await waitFrame();
+      const canvas = await html2canvas(slides[i], {
+        width: slides[i].offsetWidth,
+        height: slides[i].offsetHeight,
+        scale: 1280 / slides[i].offsetWidth,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#B8DCF0',
+        logging: false
+      });
+      const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+      zip.file(`slide_${String(i + 1).padStart(2, '0')}.png`, blob);
+    }
+    statusEl.textContent = 'Đang đóng gói ZIP...';
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(zipBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'slides.zip';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    show(originalActive);
+    statusEl.textContent = `Hoàn tất! Đã tải ${indices.length} slide trong slides.zip.`;
+  } catch (e) {
+    statusEl.textContent = 'Lỗi: ' + e.message;
+  }
+  genBtn.disabled = false;
+  zipBtn.disabled = false;
+}
+
+async function downloadPptx() {
+  if (!slides.length) return;
+  const indices = getDownloadIndices();
+  if (!indices.length) {
+    statusEl.textContent = 'Không có slide hợp lệ trong dải đã chọn để xuất.';
+    return;
+  }
+  const genBtn = document.getElementById('gen-btn');
+  const zipBtn = document.getElementById('zip-btn');
+  const pptxBtn = document.getElementById('pptx-btn');
+  const originalActive = cur;
+  genBtn.disabled = true;
+  zipBtn.disabled = true;
+  pptxBtn.disabled = true;
+  try {
+    const aspect = slides[0].offsetHeight / slides[0].offsetWidth;
+    const slideWidthIn = 13.333;
+    const slideHeightIn = slideWidthIn * aspect;
+    const pptx = new PptxGenJS();
+    pptx.defineLayout({ name: 'CUSTOM', width: slideWidthIn, height: slideHeightIn });
+    pptx.layout = 'CUSTOM';
+    for (let j = 0; j < indices.length; j++) {
+      const i = indices[j];
+      statusEl.textContent = `Đang chụp slide ${i + 1} (${j + 1}/${indices.length})...`;
+      show(i);
+      await waitFrame();
+      const canvas = await html2canvas(slides[i], {
+        width: slides[i].offsetWidth,
+        height: slides[i].offsetHeight,
+        scale: 1280 / slides[i].offsetWidth,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#B8DCF0',
+        logging: false
+      });
+      const dataUrl = canvas.toDataURL('image/png');
+      const pSlide = pptx.addSlide();
+      pSlide.addImage({ data: dataUrl, x: 0, y: 0, w: slideWidthIn, h: slideHeightIn });
+    }
+    statusEl.textContent = 'Đang xuất file PowerPoint...';
+    await pptx.writeFile({ fileName: 'slides.pptx' });
+    show(originalActive);
+    statusEl.textContent = `Hoàn tất! Đã xuất ${indices.length} slide vào slides.pptx.`;
+  } catch (e) {
+    statusEl.textContent = 'Lỗi: ' + e.message;
+  }
+  genBtn.disabled = false;
+  zipBtn.disabled = false;
+  pptxBtn.disabled = false;
+}
+
+const PROJECT_STORAGE_KEY = 'slideGeneratorProject';
+let autosaveTimer = null;
+
+function scheduleAutosave() {
+  clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(saveProjectToLocalStorage, 600);
+}
+
+function getProjectState() {
+  return {
+    version: 1,
+    savedAt: new Date().toISOString(),
+    rawInput: document.getElementById('raw-input').value,
+    titlePrefix: document.getElementById('title-input').value,
+    sectionLabel: document.getElementById('label-input').value,
+    slideRange: document.getElementById('slide-range').value,
+    downloadRange: document.getElementById('download-range').value,
+    format: {
+      alignH: document.getElementById('align-h').value,
+      alignV: document.getElementById('align-v').value,
+      padTop: document.getElementById('pad-top').value,
+      padRight: document.getElementById('pad-right').value,
+      padBottom: document.getElementById('pad-bottom').value,
+      padLeft: document.getElementById('pad-left').value,
+      fontFamily: document.getElementById('font-family').value,
+      fontSize: document.getElementById('font-size').value
+    },
+    imgGen: {
+      provider: document.getElementById('img-provider').value,
+      model: document.getElementById('img-model').value,
+      key: document.getElementById('img-key').value,
+      complexity: document.getElementById('img-complexity').value,
+      hasText: document.getElementById('img-text').value,
+      noBorder: document.getElementById('img-no-border').checked,
+      extraPrompt: document.getElementById('img-extra-prompt').value
+    },
+    cur,
+    slidesHtml: slides.map(s => s.outerHTML),
+    slideTexts,
+    slideGroups,
+    uploadTray: Object.assign({}, uploadedImages),
+    uploadTrayNames: Object.assign({}, uploadedImageNames),
+    imgMapPrefix: document.getElementById('img-map-prefix').value,
+    audioDataUrl,
+    slideTimestamps,
+    videoResolution: document.getElementById('video-resolution').value,
+    numberedContentPlain: document.getElementById('numbered-content-plain').checked
+  };
+}
+
+function applyProjectState(state) {
+  if (!state) return;
+  document.getElementById('raw-input').value = state.rawInput || '';
+  document.getElementById('title-input').value = state.titlePrefix || '';
+  document.getElementById('label-input').value = state.sectionLabel || '';
+  document.getElementById('slide-range').value = state.slideRange || '';
+  document.getElementById('download-range').value = state.downloadRange || '';
+  document.getElementById('numbered-content-plain').checked = !!state.numberedContentPlain;
+
+  const f = state.format || {};
+  if (f.alignH) document.getElementById('align-h').value = f.alignH;
+  if (f.alignV) document.getElementById('align-v').value = f.alignV;
+  if (f.padTop !== undefined && f.padTop !== '') document.getElementById('pad-top').value = f.padTop;
+  if (f.padRight !== undefined && f.padRight !== '') document.getElementById('pad-right').value = f.padRight;
+  if (f.padBottom !== undefined && f.padBottom !== '') document.getElementById('pad-bottom').value = f.padBottom;
+  if (f.padLeft !== undefined && f.padLeft !== '') document.getElementById('pad-left').value = f.padLeft;
+  if (f.fontFamily) document.getElementById('font-family').value = f.fontFamily;
+  document.getElementById('font-size').value = f.fontSize || '';
+
+  const ig = state.imgGen || {};
+  if (ig.provider) document.getElementById('img-provider').value = ig.provider;
+  if (ig.key) document.getElementById('img-key').value = ig.key;
+  if (ig.complexity) document.getElementById('img-complexity').value = ig.complexity;
+  if (ig.hasText) document.getElementById('img-text').value = ig.hasText;
+  if (ig.noBorder !== undefined) document.getElementById('img-no-border').checked = ig.noBorder;
+  if (ig.extraPrompt) document.getElementById('img-extra-prompt').value = ig.extraPrompt;
+
+  uploadedImages = {};
+  uploadedImageNames = {};
+  uploadIdCounter = 0;
+  document.getElementById('img-map-prefix').value = state.imgMapPrefix || '';
+  const tray = document.getElementById('upload-tray');
+  tray.innerHTML = '<span class="hint-small tray-empty-hint">Chưa có ảnh nào được tải lên.</span>';
+  if (state.uploadTray) {
+    Object.keys(state.uploadTray).forEach(id => {
+      uploadedImages[id] = state.uploadTray[id];
+      uploadedImageNames[id] = (state.uploadTrayNames && state.uploadTrayNames[id]) || '';
+      const num = parseInt(id.replace('up', ''), 10);
+      if (!isNaN(num) && num >= uploadIdCounter) uploadIdCounter = num + 1;
+      addTrayThumb(id, state.uploadTray[id], uploadedImageNames[id]);
+    });
+  }
+
+  if (state.slidesHtml && state.slidesHtml.length) {
+    stage.innerHTML = state.slidesHtml.join('');
+    slides = Array.from(stage.querySelectorAll('.slide'));
+    slideTexts = state.slideTexts || [];
+    slideGroups = state.slideGroups || [];
+    stage.querySelectorAll('.illust').forEach(bindIllustEvents);
+    slides.forEach(s => s.classList.remove('active'));
+    cur = Math.max(0, Math.min(slides.length - 1, state.cur || 0));
+    slides[cur].classList.add('active');
+    document.getElementById('tot').textContent = slides.length;
+    document.getElementById('cur-input').max = slides.length;
+    document.getElementById('cur-input').value = cur + 1;
+    document.getElementById('prev').disabled = cur === 0;
+    document.getElementById('next').disabled = cur === slides.length - 1;
+    document.getElementById('zip-btn').disabled = false;
+    document.getElementById('pptx-btn').disabled = false;
+    document.getElementById('img-btn').disabled = false;
+    updateSlideRangeInfo();
+    updateDownloadRangeInfo();
+    updateSlideEditBox();
+  }
+
+  audioDataUrl = state.audioDataUrl || '';
+  if (audioDataUrl) mapAudioEl.src = audioDataUrl;
+  slideTimestamps = state.slideTimestamps || [];
+  if (state.videoResolution) document.getElementById('video-resolution').value = state.videoResolution;
+  const audioStatusEl = document.getElementById('audio-status');
+  if (audioStatusEl) audioStatusEl.textContent = audioDataUrl ? 'Đã khôi phục file audio đã lưu.' : '';
+  rebuildTimestampList();
+
+  applySlideStyle();
+
+  if (ig.provider === 'gemini' && ig.key) {
+    fetchModelList().then(() => {
+      if (ig.model) document.getElementById('img-model').value = ig.model;
+    }).catch(() => {});
+  }
+}
+
+function saveProjectToLocalStorage() {
+  const statusEl2 = document.getElementById('project-status');
+  try {
+    localStorage.setItem(PROJECT_STORAGE_KEY, JSON.stringify(getProjectState()));
+    if (statusEl2) {
+      const t = new Date();
+      statusEl2.textContent = `Đã tự động lưu lúc ${t.toLocaleTimeString()}.`;
+    }
+  } catch (e) {
+    if (statusEl2) {
+      statusEl2.textContent = 'Không thể tự động lưu (dữ liệu quá lớn, thường do nhiều ảnh). Hãy dùng "Tải file dự án" để lưu thủ công.';
+    }
+  }
+}
+
+function loadProjectFromLocalStorage() {
+  try {
+    const raw = localStorage.getItem(PROJECT_STORAGE_KEY);
+    if (!raw) return false;
+    const state = JSON.parse(raw);
+    applyProjectState(state);
+    const statusEl2 = document.getElementById('project-status');
+    if (statusEl2) {
+      statusEl2.textContent = `Đã khôi phục dự án đã lưu lúc ${new Date(state.savedAt).toLocaleString()}.`;
+    }
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function downloadProjectFile() {
+  const blob = new Blob([JSON.stringify(getProjectState(), null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'slide_project.json';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  document.getElementById('project-status').textContent = 'Đã tải file dự án slide_project.json.';
+}
+
+function handleProjectFileSelect(e) {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const state = JSON.parse(reader.result);
+      applyProjectState(state);
+      document.getElementById('project-status').textContent = `Đã mở dự án từ file ${file.name}.`;
+      scheduleAutosave();
+    } catch (err) {
+      document.getElementById('project-status').textContent = 'Lỗi: file dự án không hợp lệ.';
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+function clearSavedProject() {
+  if (!confirm('Xoá dữ liệu dự án đã tự động lưu trong trình duyệt này? (File .json đã tải ra máy sẽ không bị ảnh hưởng)')) return;
+  localStorage.removeItem(PROJECT_STORAGE_KEY);
+  document.getElementById('project-status').textContent = 'Đã xoá dữ liệu đã lưu trong trình duyệt.';
+}
+
+document.addEventListener('input', scheduleAutosave);
+document.addEventListener('change', scheduleAutosave);
+window.addEventListener('beforeunload', saveProjectToLocalStorage);
+
+if (!loadProjectFromLocalStorage()) {
+  applySlideStyle();
+}
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pptxgenjs@4.0.1/dist/pptxgen.bundle.js"></script>
+<script type="module">
+// Heavy WASM inference (model load + transcription) ideally runs inside a Web Worker so it
+// never blocks the main/UI thread. Module Workers that import a cross-origin ES module fail
+// silently when the page itself is opened via file:// (browsers treat file:// as an opaque
+// origin for worker module resolution) — so when running from file://, we fall back to
+// running inference directly on the main thread (functional, just not non-blocking).
+const CAN_USE_WORKER = location.protocol !== 'file:';
+
+const ASR_WORKER_SRC = `
+import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2';
+env.allowLocalModels = false;
+
+let asrPipelinePromise = null;
+let loadedModel = null;
+
+self.onmessage = async (e) => {
+  if (e.data.type !== 'transcribe') return;
+  const { samples, model } = e.data;
+  try {
+    if (!asrPipelinePromise || loadedModel !== model) {
+      loadedModel = model;
+      asrPipelinePromise = pipeline('automatic-speech-recognition', model, {
+        quantized: true,
+        progress_callback: (p) => self.postMessage({ type: 'progress', payload: p })
+      });
+    }
+    const asr = await asrPipelinePromise;
+    const floatSamples = new Float32Array(samples);
+    const output = await asr(floatSamples, {
+      language: 'japanese',
+      task: 'transcribe',
+      return_timestamps: 'word',
+      chunk_length_s: 30,
+      stride_length_s: 5
+    });
+    self.postMessage({ type: 'result', chunks: output.chunks || [] });
+  } catch (err) {
+    self.postMessage({ type: 'error', message: (err && err.message) || String(err) });
+  }
+};
+`;
+
+let asrWorker = null;
+function getAsrWorker() {
+  if (!asrWorker) {
+    const blob = new Blob([ASR_WORKER_SRC], { type: 'text/javascript' });
+    asrWorker = new Worker(URL.createObjectURL(blob), { type: 'module' });
+  }
+  return asrWorker;
+}
+
+async function resampleTo16kMono(audioDataUrl) {
+  const res = await fetch(audioDataUrl);
+  const arrayBuffer = await res.arrayBuffer();
+  const tmpCtx = new (window.AudioContext || window.webkitAudioContext)();
+  const decoded = await tmpCtx.decodeAudioData(arrayBuffer);
+  const offline = new OfflineAudioContext(1, Math.ceil(decoded.duration * 16000), 16000);
+  const src = offline.createBufferSource();
+  src.buffer = decoded;
+  src.connect(offline.destination);
+  src.start(0);
+  const rendered = await offline.startRendering();
+  return { samples: rendered.getChannelData(0), duration: decoded.duration };
+}
+
+async function transcribeViaWorker(samples, modelId, onProgress) {
+  const worker = getAsrWorker();
+  return await new Promise((resolve, reject) => {
+    function handleMessage(e) {
+      const data = e.data;
+      if (data.type === 'progress') {
+        onProgress && onProgress(data.payload);
+      } else if (data.type === 'result') {
+        cleanup();
+        resolve(data.chunks);
+      } else if (data.type === 'error') {
+        cleanup();
+        reject(new Error(data.message));
+      }
+    }
+    function handleError() {
+      cleanup();
+      reject(new Error('worker_init_failed'));
+    }
+    function cleanup() {
+      worker.removeEventListener('message', handleMessage);
+      worker.removeEventListener('error', handleError);
+    }
+    worker.addEventListener('message', handleMessage);
+    worker.addEventListener('error', handleError);
+    const buf = samples.buffer;
+    worker.postMessage({ type: 'transcribe', samples: buf, model: modelId }, [buf]);
+  });
+}
+
+let mainThreadAsrPipelinePromise = null;
+let mainThreadLoadedModel = null;
+async function transcribeOnMainThread(samples, modelId, onProgress) {
+  const { pipeline, env } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2');
+  env.allowLocalModels = false;
+  if (!mainThreadAsrPipelinePromise || mainThreadLoadedModel !== modelId) {
+    mainThreadLoadedModel = modelId;
+    mainThreadAsrPipelinePromise = pipeline('automatic-speech-recognition', modelId, {
+      quantized: true,
+      progress_callback: onProgress
+    });
+  }
+  const asr = await mainThreadAsrPipelinePromise;
+  const output = await asr(samples, {
+    language: 'japanese',
+    task: 'transcribe',
+    return_timestamps: 'word',
+    chunk_length_s: 30,
+    stride_length_s: 5
+  });
+  return output.chunks || [];
+}
+
+window.__whisperUsesWorker = CAN_USE_WORKER;
+
+const workerHintEl = document.getElementById('worker-mode-hint');
+if (workerHintEl) {
+  workerHintEl.textContent = CAN_USE_WORKER
+    ? 'AI chạy ở luồng riêng (Web Worker) — không làm đơ trình duyệt trong lúc xử lý. Máy yếu vẫn nên chọn "Tiny"/"Base" để xử lý nhanh hơn. Có thể bấm "Hủy" để dừng giữa chừng.'
+    : 'Trang đang mở trực tiếp từ file (file://) nên trình duyệt chặn AI chạy ở luồng riêng — AI sẽ chạy trên luồng chính và có thể tạm đơ trình duyệt trong lúc xử lý. Chọn "Tiny" hoặc "Base" để xử lý nhanh, đỡ đơ hơn. Mở trang qua server (vd: http://localhost) sẽ giúp AI chạy nền, không đơ.';
+}
+
+window.__whisperTranscribe = async function(audioDataUrl, modelId, onProgress) {
+  const { samples, duration } = await resampleTo16kMono(audioDataUrl);
+  let chunks;
+  if (CAN_USE_WORKER) {
+    try {
+      chunks = await transcribeViaWorker(samples, modelId, onProgress);
+    } catch (e) {
+      chunks = await transcribeOnMainThread(samples, modelId, onProgress);
+    }
+  } else {
+    chunks = await transcribeOnMainThread(samples, modelId, onProgress);
+  }
+  return { chunks, duration };
+};
+
+window.__whisperCancel = function() {
+  if (asrWorker) {
+    asrWorker.terminate();
+    asrWorker = null;
+  }
+};
+</script>
+</body>
+</html>
