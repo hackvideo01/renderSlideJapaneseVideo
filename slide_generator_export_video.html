@@ -108,7 +108,10 @@ body {
   cursor: se-resize;
   z-index: 20;
   touch-action: none;
+  opacity: 0;
+  transition: opacity 0.15s;
 }
+.illust:hover .resize-handle { opacity: 1; }
 .illust-del-btn {
   position: absolute;
   top: -8px;
