@@ -1362,7 +1362,7 @@ function setSlideIllust(idx, dataUrl) {
   if (!slide) return;
   let illust = slide.querySelector('.illust[data-ai="1"]');
   if (!illust) {
-    illust = createDraggableImage(dataUrl, 80, 32, 18);
+    illust = createDraggableImage(dataUrl, 48, 8, 50);
     illust.dataset.ai = '1';
     slide.appendChild(illust);
   } else {
@@ -1373,11 +1373,11 @@ function setSlideIllust(idx, dataUrl) {
 
 function addUploadedImageToSlide(slide, dataUrl, clientX, clientY) {
   const rect = slide.getBoundingClientRect();
-  const widthPct = 22;
+  const widthPct = 50;
   let leftPct = ((clientX - rect.left) / rect.width) * 100 - widthPct / 2;
   let topPct = ((clientY - rect.top) / rect.height) * 100 - 10;
   leftPct = Math.max(0, Math.min(100 - widthPct, leftPct));
-  topPct = Math.max(0, Math.min(85, topPct));
+  topPct = Math.max(0, Math.min(20, topPct));
   const illust = createDraggableImage(dataUrl, leftPct, topPct, widthPct);
   slide.appendChild(illust);
 }
@@ -1505,7 +1505,7 @@ function setSlideMappedImage(idx, dataUrl) {
   if (!slide) return;
   let illust = slide.querySelector('.illust[data-mapped="1"]');
   if (!illust) {
-    illust = createDraggableImage(dataUrl, 80, 32, 18);
+    illust = createDraggableImage(dataUrl, 48, 8, 50);
     illust.dataset.mapped = '1';
     slide.appendChild(illust);
   } else {
@@ -1768,6 +1768,13 @@ function formatTime(t) {
   return `${m}:${s.padStart(5, '0')}`;
 }
 
+function mmss(t) {
+  if (t === null || t === undefined || isNaN(t) || t < 0) return '0:00';
+  const m = Math.floor(t / 60);
+  const s = Math.floor(t % 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
 function parseTime(str) {
   str = (str || '').trim();
   if (!str) return null;
@@ -1837,13 +1844,21 @@ async function autoMarkSlides() {
   if (window.__whisperTranscribe) {
     try {
       progress.textContent = 'Đang chuẩn bị AI nhận diện giọng nói (chạy ở luồng riêng, không làm đơ trình duyệt)...';
-      const { chunks, duration } = await window.__whisperTranscribe(mapAudioEl.src, modelId, (p) => {
+      const onModelProgress = (p) => {
         if (p && p.status === 'progress' && p.file) {
           progress.textContent = `Đang tải mô hình AI (${p.file}): ${Math.round(p.progress || 0)}%...`;
         } else if (p && p.status === 'done') {
           progress.textContent = 'Đã tải xong mô hình, đang nhận diện giọng nói...';
         }
-      });
+      };
+      const onChunkProgress = (info) => {
+        const percent = Math.round((info.chunkIndex / info.totalChunks) * 100);
+        const elapsedSec = info.elapsedMs / 1000;
+        const avgPerChunk = elapsedSec / info.chunkIndex;
+        const etaSec = avgPerChunk * (info.totalChunks - info.chunkIndex);
+        progress.textContent = `Đang nhận diện giọng nói: đoạn ${info.chunkIndex}/${info.totalChunks} (${percent}%) — đã xử lý ${mmss(info.currentTimeSec)} / ${mmss(info.totalDurationSec)} audio — ước tính còn lại ~${mmss(etaSec)}.`;
+      };
+      const { chunks, duration } = await window.__whisperTranscribe(mapAudioEl.src, modelId, onModelProgress, onChunkProgress);
       if (autoMarkCancelled) { autoBtn.disabled = false; cancelBtn.disabled = true; return; }
       progress.textContent = 'Đang khớp lời đọc với nội dung từng slide...';
       whisperResult = computeWhisperTimestamps(chunks, duration);
@@ -2623,16 +2638,34 @@ if (!loadProjectFromLocalStorage()) {
 // running inference directly on the main thread (functional, just not non-blocking).
 const CAN_USE_WORKER = location.protocol !== 'file:';
 
+// Audio is split into windows (with a small overlap) and transcribed one window at a time instead of
+// handing the whole file to the pipeline's internal chunk_length_s in one call. This is what makes
+// per-chunk progress (%, elapsed/ETA) possible, and lets cancel take effect within one chunk's time
+// instead of only being able to kill the whole worker and lose the loaded model. The Worker path runs
+// off the main thread so a bigger window just means less message-passing overhead. The main-thread
+// fallback (file:// pages) blocks the UI for the full duration of each chunk's WASM call, so it uses a
+// much smaller window to keep the page (and the Cancel button) responsive between chunks.
+const ASR_CHUNK_SEC = 24;
+const ASR_OVERLAP_SEC = 2;
+const ASR_CHUNK_SEC_MAIN_THREAD = 8;
+const ASR_OVERLAP_SEC_MAIN_THREAD = 1;
+
 const ASR_WORKER_SRC = `
 import { pipeline, env } from 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2';
 env.allowLocalModels = false;
 
 let asrPipelinePromise = null;
 let loadedModel = null;
+let cancelled = false;
 
 self.onmessage = async (e) => {
+  if (e.data.type === 'cancel') { cancelled = true; return; }
   if (e.data.type !== 'transcribe') return;
+  cancelled = false;
   const { samples, model } = e.data;
+  const sampleRate = 16000;
+  const chunkSec = ${ASR_CHUNK_SEC};
+  const stepSec = ${ASR_CHUNK_SEC - ASR_OVERLAP_SEC};
   try {
     if (!asrPipelinePromise || loadedModel !== model) {
       loadedModel = model;
@@ -2643,14 +2676,31 @@ self.onmessage = async (e) => {
     }
     const asr = await asrPipelinePromise;
     const floatSamples = new Float32Array(samples);
-    const output = await asr(floatSamples, {
-      language: 'japanese',
-      task: 'transcribe',
-      return_timestamps: 'word',
-      chunk_length_s: 30,
-      stride_length_s: 5
-    });
-    self.postMessage({ type: 'result', chunks: output.chunks || [] });
+    const totalDuration = floatSamples.length / sampleRate;
+    const totalChunks = Math.max(1, Math.ceil(totalDuration / stepSec));
+    const allChunks = [];
+    const startTime = Date.now();
+    for (let i = 0; i < totalChunks; i++) {
+      if (cancelled) { self.postMessage({ type: 'cancelled' }); return; }
+      const startSec = i * stepSec;
+      const endSec = Math.min(totalDuration, startSec + chunkSec);
+      const slice = floatSamples.subarray(Math.floor(startSec * sampleRate), Math.floor(endSec * sampleRate));
+      const out = await asr(slice, { language: 'japanese', task: 'transcribe', return_timestamps: 'word' });
+      for (const c of (out.chunks || [])) {
+        const t0 = c.timestamp && c.timestamp[0] != null ? c.timestamp[0] + startSec : null;
+        const t1 = c.timestamp && c.timestamp[1] != null ? c.timestamp[1] + startSec : null;
+        allChunks.push({ text: c.text, timestamp: [t0, t1] });
+      }
+      self.postMessage({
+        type: 'chunk_progress',
+        chunkIndex: i + 1,
+        totalChunks,
+        currentTimeSec: endSec,
+        totalDurationSec: totalDuration,
+        elapsedMs: Date.now() - startTime
+      });
+    }
+    self.postMessage({ type: 'result', chunks: allChunks });
   } catch (err) {
     self.postMessage({ type: 'error', message: (err && err.message) || String(err) });
   }
@@ -2680,16 +2730,23 @@ async function resampleTo16kMono(audioDataUrl) {
   return { samples: rendered.getChannelData(0), duration: decoded.duration };
 }
 
-async function transcribeViaWorker(samples, modelId, onProgress) {
+async function transcribeViaWorker(samples, modelId, onProgress, onChunkProgress) {
   const worker = getAsrWorker();
   return await new Promise((resolve, reject) => {
     function handleMessage(e) {
       const data = e.data;
       if (data.type === 'progress') {
         onProgress && onProgress(data.payload);
+      } else if (data.type === 'chunk_progress') {
+        onChunkProgress && onChunkProgress(data);
       } else if (data.type === 'result') {
         cleanup();
         resolve(data.chunks);
+      } else if (data.type === 'cancelled') {
+        cleanup();
+        const err = new Error('cancelled');
+        err.cancelled = true;
+        reject(err);
       } else if (data.type === 'error') {
         cleanup();
         reject(new Error(data.message));
@@ -2712,7 +2769,9 @@ async function transcribeViaWorker(samples, modelId, onProgress) {
 
 let mainThreadAsrPipelinePromise = null;
 let mainThreadLoadedModel = null;
-async function transcribeOnMainThread(samples, modelId, onProgress) {
+let mainThreadCancelled = false;
+async function transcribeOnMainThread(samples, modelId, onProgress, onChunkProgress) {
+  mainThreadCancelled = false;
   const { pipeline, env } = await import('https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2');
   env.allowLocalModels = false;
   if (!mainThreadAsrPipelinePromise || mainThreadLoadedModel !== modelId) {
@@ -2723,14 +2782,36 @@ async function transcribeOnMainThread(samples, modelId, onProgress) {
     });
   }
   const asr = await mainThreadAsrPipelinePromise;
-  const output = await asr(samples, {
-    language: 'japanese',
-    task: 'transcribe',
-    return_timestamps: 'word',
-    chunk_length_s: 30,
-    stride_length_s: 5
-  });
-  return output.chunks || [];
+  const sampleRate = 16000;
+  const stepSec = ASR_CHUNK_SEC_MAIN_THREAD - ASR_OVERLAP_SEC_MAIN_THREAD;
+  const totalDuration = samples.length / sampleRate;
+  const totalChunks = Math.max(1, Math.ceil(totalDuration / stepSec));
+  const allChunks = [];
+  const startTime = Date.now();
+  for (let i = 0; i < totalChunks; i++) {
+    if (mainThreadCancelled) {
+      const err = new Error('cancelled');
+      err.cancelled = true;
+      throw err;
+    }
+    const startSec = i * stepSec;
+    const endSec = Math.min(totalDuration, startSec + ASR_CHUNK_SEC_MAIN_THREAD);
+    const slice = samples.subarray(Math.floor(startSec * sampleRate), Math.floor(endSec * sampleRate));
+    const out = await asr(slice, { language: 'japanese', task: 'transcribe', return_timestamps: 'word' });
+    for (const c of (out.chunks || [])) {
+      const t0 = c.timestamp && c.timestamp[0] != null ? c.timestamp[0] + startSec : null;
+      const t1 = c.timestamp && c.timestamp[1] != null ? c.timestamp[1] + startSec : null;
+      allChunks.push({ text: c.text, timestamp: [t0, t1] });
+    }
+    onChunkProgress && onChunkProgress({
+      chunkIndex: i + 1, totalChunks, currentTimeSec: endSec, totalDurationSec: totalDuration,
+      elapsedMs: Date.now() - startTime
+    });
+    // Yield back to the event loop so the UI can repaint the progress text between chunks
+    // (this is what keeps the page responsive even when running on the main thread).
+    await new Promise(r => setTimeout(r, 0));
+  }
+  return allChunks;
 }
 
 window.__whisperUsesWorker = CAN_USE_WORKER;
@@ -2738,29 +2819,39 @@ window.__whisperUsesWorker = CAN_USE_WORKER;
 const workerHintEl = document.getElementById('worker-mode-hint');
 if (workerHintEl) {
   workerHintEl.textContent = CAN_USE_WORKER
-    ? 'AI chạy ở luồng riêng (Web Worker) — không làm đơ trình duyệt trong lúc xử lý. Máy yếu vẫn nên chọn "Tiny"/"Base" để xử lý nhanh hơn. Có thể bấm "Hủy" để dừng giữa chừng.'
-    : 'Trang đang mở trực tiếp từ file (file://) nên trình duyệt chặn AI chạy ở luồng riêng — AI sẽ chạy trên luồng chính và có thể tạm đơ trình duyệt trong lúc xử lý. Chọn "Tiny" hoặc "Base" để xử lý nhanh, đỡ đơ hơn. Mở trang qua server (vd: http://localhost) sẽ giúp AI chạy nền, không đơ.';
+    ? 'AI chạy ở luồng riêng (Web Worker) — không làm đơ trình duyệt trong lúc xử lý. Audio được xử lý theo từng đoạn ~24 giây, tiến độ (%, đã xử lý/còn lại) hiện liên tục bên dưới. Máy yếu hoặc audio dài nên chọn "Tiny"/"Base" để xử lý nhanh hơn. Bấm "Hủy" sẽ dừng ngay sau đoạn đang xử lý.'
+    : 'Trang đang mở trực tiếp từ file (file://) nên trình duyệt chặn AI chạy ở luồng riêng — AI sẽ chạy trên luồng chính, xử lý theo từng đoạn ~24 giây (tiến độ %, đã xử lý/còn lại hiện bên dưới) nên đỡ đơ hơn so với xử lý cả file một lúc. Chọn "Tiny" hoặc "Base" để xử lý nhanh hơn. Mở trang qua server (vd: http://localhost) sẽ giúp AI chạy nền, không đơ chút nào.';
 }
 
-window.__whisperTranscribe = async function(audioDataUrl, modelId, onProgress) {
+window.__whisperTranscribe = async function(audioDataUrl, modelId, onProgress, onChunkProgress) {
   const { samples, duration } = await resampleTo16kMono(audioDataUrl);
   let chunks;
   if (CAN_USE_WORKER) {
     try {
-      chunks = await transcribeViaWorker(samples, modelId, onProgress);
+      chunks = await transcribeViaWorker(samples, modelId, onProgress, onChunkProgress);
     } catch (e) {
-      chunks = await transcribeOnMainThread(samples, modelId, onProgress);
+      if (e && e.cancelled) throw e;
+      chunks = await transcribeOnMainThread(samples, modelId, onProgress, onChunkProgress);
     }
   } else {
-    chunks = await transcribeOnMainThread(samples, modelId, onProgress);
+    chunks = await transcribeOnMainThread(samples, modelId, onProgress, onChunkProgress);
   }
   return { chunks, duration };
 };
 
 window.__whisperCancel = function() {
+  mainThreadCancelled = true;
   if (asrWorker) {
-    asrWorker.terminate();
-    asrWorker = null;
+    const workerToKill = asrWorker;
+    try { workerToKill.postMessage({ type: 'cancel' }); } catch (e) {}
+    // Cooperative cancel takes effect within one ~24s chunk. If the worker is stuck
+    // (e.g. hung mid-download with no network), fall back to a hard kill after a grace period.
+    setTimeout(() => {
+      if (asrWorker === workerToKill) {
+        try { workerToKill.terminate(); } catch (e) {}
+        asrWorker = null;
+      }
+    }, 8000);
   }
 };
 </script>
