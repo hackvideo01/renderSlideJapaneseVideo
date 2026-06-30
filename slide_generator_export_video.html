@@ -130,6 +130,25 @@ body {
   transition: opacity 0.15s;
 }
 .illust:hover .illust-del-btn { opacity: 1; }
+.illust.behind-text { z-index: 5; }
+.illust-layer-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 18px;
+  height: 18px;
+  background: #1A4F78;
+  color: #fff;
+  border-radius: 50%;
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+  cursor: pointer;
+  z-index: 21;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.illust:hover .illust-layer-btn { opacity: 1; }
 .upload-tray {
   display: flex;
   flex-wrap: wrap;
@@ -325,6 +344,7 @@ body {
   text-align: left;
   padding: 6% 10%;
   width: 100%;
+  pointer-events: none;
 }
 
 .sentence {
@@ -1280,6 +1300,29 @@ function bindIllustEvents(illust) {
     delBtn.addEventListener('pointerdown', e => e.stopPropagation());
     delBtn.addEventListener('click', e => { e.stopPropagation(); illust.remove(); scheduleAutosave(); });
   }
+  let layerBtn = illust.querySelector('.illust-layer-btn');
+  if (!layerBtn) {
+    layerBtn = document.createElement('div');
+    layerBtn.className = 'illust-layer-btn';
+    illust.appendChild(layerBtn);
+  }
+  updateIllustLayerBtn(illust, layerBtn);
+  layerBtn.addEventListener('pointerdown', e => e.stopPropagation());
+  layerBtn.addEventListener('click', e => { e.stopPropagation(); toggleIllustLayer(illust); });
+}
+
+function updateIllustLayerBtn(illust, layerBtn) {
+  const btn = layerBtn || illust.querySelector('.illust-layer-btn');
+  if (!btn) return;
+  const behind = illust.classList.contains('behind-text');
+  btn.textContent = behind ? '⬆' : '⬇';
+  btn.title = behind ? 'Đưa ảnh lên trước chữ' : 'Đưa ảnh ra sau chữ';
+}
+
+function toggleIllustLayer(illust) {
+  illust.classList.toggle('behind-text');
+  updateIllustLayerBtn(illust);
+  scheduleAutosave();
 }
 
 function createDraggableImage(dataUrl, leftPct, topPct, widthPct) {
