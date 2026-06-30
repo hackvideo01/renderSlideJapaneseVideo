@@ -140,6 +140,11 @@ body {
   border-radius: 6px;
   min-height: 64px;
 }
+.upload-thumb-wrap {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
 .upload-thumb {
   width: 64px;
   height: 64px;
@@ -147,8 +152,39 @@ body {
   object-fit: cover;
   cursor: grab;
   border: 1px solid #3a3a5c;
+  display: block;
 }
 .upload-thumb:active { cursor: grabbing; }
+.upload-thumb-wrap.selected .upload-thumb { border-color: #2E6A9A; outline: 2px solid #2E6A9A; }
+.upload-thumb-del {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  background: #b03030;
+  color: #fff;
+  border-radius: 50%;
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+  cursor: pointer;
+  z-index: 5;
+  opacity: 0;
+  transition: opacity 0.15s;
+  user-select: none;
+}
+.upload-thumb-wrap:hover .upload-thumb-del { opacity: 1; }
+.upload-thumb-check {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #2E6A9A;
+  z-index: 5;
+}
 .key-input-wrap { position: relative; display: flex; }
 .key-input-wrap input { flex: 1; padding-right: 38px; }
 .key-eye-btn {
@@ -497,8 +533,14 @@ ruby rt {
   </div>
   <div class="panel-body">
     <input type="file" id="upload-input" accept="image/*" multiple onchange="handleUploadFiles(event)">
-    <span class="hint-small">Chọn nhiều ảnh cùng lúc, ảnh sẽ vào khay tạm dưới đây. Kéo từng ảnh từ khay thả vào slide đang xem (slide đang hiện trong khung bên dưới) để chèn ảnh, kéo/resize lại sau khi thả. Bấm ✕ trên ảnh đã chèn để xoá.</span>
+    <span class="hint-small">Chọn nhiều ảnh cùng lúc, ảnh sẽ vào khay tạm dưới đây. Kéo từng ảnh từ khay thả vào slide đang xem để chèn ảnh. Rê chuột vào ảnh trong khay để thấy nút ✕ xoá ảnh đó.</span>
     <div class="upload-tray" id="upload-tray"><span class="hint-small tray-empty-hint">Chưa có ảnh nào được tải lên.</span></div>
+    <div class="panel-actions" style="margin-top:6px; flex-wrap:wrap; gap:6px;">
+      <button class="btn btn-sm" onclick="selectAllTrayThumbs()">☑ Chọn tất cả</button>
+      <button class="btn btn-sm" onclick="deselectAllTrayThumbs()">☐ Bỏ chọn tất cả</button>
+      <button class="btn btn-sm" style="background:#3a1a1a; color:#f08080; border-color:#7a3030;" onclick="deleteSelectedTrayThumbs()">🗑 Xoá ảnh đã chọn</button>
+      <span class="status" id="tray-delete-status"></span>
+    </div>
 
     <label for="img-map-prefix" style="margin-top:6px;">Mapping tự động theo tên file (tiền_tố_số.ext, vd: scene_1.jpg, scene_2.png...)</label>
     <input type="text" id="img-map-prefix" placeholder="VD: scene">
@@ -712,6 +754,91 @@ function applySlideStyle() {
     css += `.sentence { font-size: ${fontSize}px; }`;
   }
   document.getElementById('dynamic-style').textContent = css;
+  scheduleOrphanFix();
+}
+
+let orphanFixTimer = null;
+function scheduleOrphanFix() {
+  clearTimeout(orphanFixTimer);
+  orphanFixTimer = setTimeout(() => { fixAllOrphanLines(); }, 300);
+}
+
+function sentenceHasOrphanLastLine(sentenceEl) {
+  const range = document.createRange();
+  range.selectNodeContents(sentenceEl);
+  const rects = Array.from(range.getClientRects()).filter(r => r.width > 0 && r.height > 0);
+  if (rects.length < 2) return false;
+  // getClientRects() yields one rect per inline fragment (ruby boxes split into several),
+  // not one per visual line — group fragments by their top coordinate into actual lines first.
+  const lines = [];
+  for (const r of rects) {
+    let line = lines.find(l => Math.abs(l.top - r.top) < 3);
+    if (!line) { line = { top: r.top, left: r.left, right: r.right }; lines.push(line); }
+    else { line.left = Math.min(line.left, r.left); line.right = Math.max(line.right, r.right); }
+  }
+  if (lines.length < 2) return false;
+  lines.sort((a, b) => a.top - b.top);
+  const widths = lines.map(l => l.right - l.left);
+  const maxW = Math.max(...widths);
+  const lastW = widths[widths.length - 1];
+  return maxW > 0 && (lastW / maxW) < 0.25;
+}
+
+async function fixAllOrphanLines() {
+  if (!slides.length) return;
+  if (document.fonts && document.fonts.ready) {
+    try { await document.fonts.ready; } catch (e) {}
+  }
+  await waitFrame();
+
+  const stageRect = stage.getBoundingClientRect();
+  if (!stageRect.width || !stageRect.height) return;
+
+  const measureContainer = document.createElement('div');
+  measureContainer.style.position = 'fixed';
+  measureContainer.style.left = '-99999px';
+  measureContainer.style.top = '0';
+  measureContainer.style.width = stageRect.width + 'px';
+  measureContainer.style.height = stageRect.height + 'px';
+  document.body.appendChild(measureContainer);
+
+  const step = 4;
+  const maxReductionCap = 40;
+
+  for (const slideEl of slides) {
+    const textArea = slideEl.querySelector('.text-area');
+    if (!textArea) continue;
+    textArea.style.paddingLeft = '';
+    textArea.style.paddingRight = '';
+
+    const clone = slideEl.cloneNode(true);
+    clone.classList.add('active');
+    clone.style.position = 'absolute';
+    clone.style.inset = '0';
+    measureContainer.innerHTML = '';
+    measureContainer.appendChild(clone);
+
+    const cloneTextArea = clone.querySelector('.text-area');
+    const sentences = Array.from(clone.querySelectorAll('.sentence'));
+    if (!sentences.length) continue;
+    const baseLeft = parseFloat(getComputedStyle(cloneTextArea).paddingLeft) || 0;
+    const baseRight = parseFloat(getComputedStyle(cloneTextArea).paddingRight) || 0;
+    const maxReduction = Math.min(baseLeft, baseRight, maxReductionCap);
+    let reduction = 0;
+
+    while (sentences.some(sentenceHasOrphanLastLine) && reduction < maxReduction) {
+      reduction += step;
+      cloneTextArea.style.paddingLeft = Math.max(0, baseLeft - reduction) + 'px';
+      cloneTextArea.style.paddingRight = Math.max(0, baseRight - reduction) + 'px';
+    }
+
+    if (reduction > 0) {
+      textArea.style.paddingLeft = Math.max(0, baseLeft - reduction) + 'px';
+      textArea.style.paddingRight = Math.max(0, baseRight - reduction) + 'px';
+    }
+  }
+
+  measureContainer.remove();
 }
 
 function resetSlideStyle() {
@@ -821,13 +948,32 @@ function toRubyHtml(raw) {
   return escapeHtml(raw).replace(/([一-鿿々]+)\[([^\[\]]+)\]/g, '<ruby>$1<rt>$2</rt></ruby>');
 }
 
+function splitLineIntoUnits(line) {
+  const units = [];
+  let buf = '';
+  let depth = 0;
+  for (const ch of line) {
+    buf += ch;
+    if (ch === '「' || ch === '『') {
+      depth++;
+    } else if (ch === '」' || ch === '』') {
+      depth = Math.max(0, depth - 1);
+    } else if ((ch === '。' || ch === '！' || ch === '？') && depth === 0) {
+      units.push(buf);
+      buf = '';
+    }
+  }
+  if (buf.trim()) units.push(buf);
+  return units;
+}
+
 function splitIntoSentenceUnits(rawText) {
   const lines = rawText.split('\n');
   const units = [];
   let pendingBreak = false;
   for (const line of lines) {
     if (line.trim() === '') { pendingBreak = true; continue; }
-    const parts = line.match(/[^。！？]*[。！？]」?|[^。！？]+$/g) || [line];
+    const parts = splitLineIntoUnits(line);
     for (const part of parts) {
       if (!part.trim()) continue;
       units.push({ text: part, breakBefore: pendingBreak });
@@ -901,6 +1047,7 @@ function generateSlides() {
   document.getElementById('img-btn').disabled = false;
   updateSlideEditBox();
   resetMarks();
+  scheduleOrphanFix();
   scheduleAutosave();
 }
 
@@ -1200,6 +1347,11 @@ function addTrayThumb(id, dataUrl, title) {
   const tray = document.getElementById('upload-tray');
   const emptyHint = tray.querySelector('.tray-empty-hint');
   if (emptyHint) emptyHint.remove();
+
+  const wrap = document.createElement('div');
+  wrap.className = 'upload-thumb-wrap';
+  wrap.dataset.imgId = id;
+
   const thumb = document.createElement('img');
   thumb.className = 'upload-thumb';
   thumb.src = dataUrl;
@@ -1210,7 +1362,83 @@ function addTrayThumb(id, dataUrl, title) {
     ev.dataTransfer.setData('text/plain', id);
     ev.dataTransfer.effectAllowed = 'copy';
   });
-  tray.appendChild(thumb);
+
+  const checkbox = document.createElement('input');
+  checkbox.type = 'checkbox';
+  checkbox.className = 'upload-thumb-check';
+  checkbox.title = 'Chọn để xoá';
+  checkbox.addEventListener('change', () => {
+    wrap.classList.toggle('selected', checkbox.checked);
+  });
+  checkbox.addEventListener('dragstart', e => e.stopPropagation());
+
+  const delBtn = document.createElement('div');
+  delBtn.className = 'upload-thumb-del';
+  delBtn.textContent = '✕';
+  delBtn.title = 'Xoá ảnh này';
+  delBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    deleteTrayThumb(id);
+  });
+
+  wrap.appendChild(checkbox);
+  wrap.appendChild(thumb);
+  wrap.appendChild(delBtn);
+  tray.appendChild(wrap);
+}
+
+function deleteTrayThumb(id) {
+  delete uploadedImages[id];
+  delete uploadedImageNames[id];
+  const tray = document.getElementById('upload-tray');
+  const wrap = tray.querySelector(`.upload-thumb-wrap[data-img-id="${id}"]`);
+  if (wrap) wrap.remove();
+  if (!Object.keys(uploadedImages).length) {
+    tray.innerHTML = '<span class="hint-small tray-empty-hint">Chưa có ảnh nào được tải lên.</span>';
+  }
+  const st = document.getElementById('tray-delete-status');
+  if (st) st.textContent = 'Đã xoá ảnh.';
+  scheduleAutosave();
+}
+
+function deleteSelectedTrayThumbs() {
+  const tray = document.getElementById('upload-tray');
+  const selected = Array.from(tray.querySelectorAll('.upload-thumb-wrap.selected'));
+  if (!selected.length) {
+    const st = document.getElementById('tray-delete-status');
+    if (st) st.textContent = 'Chưa chọn ảnh nào để xoá.';
+    return;
+  }
+  selected.forEach(wrap => {
+    const id = wrap.dataset.imgId;
+    delete uploadedImages[id];
+    delete uploadedImageNames[id];
+    wrap.remove();
+  });
+  if (!Object.keys(uploadedImages).length) {
+    tray.innerHTML = '<span class="hint-small tray-empty-hint">Chưa có ảnh nào được tải lên.</span>';
+  }
+  const st = document.getElementById('tray-delete-status');
+  if (st) st.textContent = `Đã xoá ${selected.length} ảnh.`;
+  scheduleAutosave();
+}
+
+function selectAllTrayThumbs() {
+  document.querySelectorAll('#upload-tray .upload-thumb-wrap').forEach(w => {
+    w.classList.add('selected');
+    const cb = w.querySelector('.upload-thumb-check');
+    if (cb) cb.checked = true;
+  });
+}
+
+function deselectAllTrayThumbs() {
+  document.querySelectorAll('#upload-tray .upload-thumb-wrap').forEach(w => {
+    w.classList.remove('selected');
+    const cb = w.querySelector('.upload-thumb-check');
+    if (cb) cb.checked = false;
+  });
+  const st = document.getElementById('tray-delete-status');
+  if (st) st.textContent = '';
 }
 
 function handleUploadFiles(e) {
@@ -1381,6 +1609,12 @@ function copyNumberedContent() {
   }
 }
 
+function syncRawInputFromSlideGroups() {
+  const rawInputEl = document.getElementById('raw-input');
+  if (!rawInputEl) return;
+  rawInputEl.value = slideGroups.map(g => g.join('\n')).join('\n\n');
+}
+
 function applySlideEdit() {
   if (!slides.length) return;
   const box = document.getElementById('slide-edit-textarea');
@@ -1395,7 +1629,9 @@ function applySlideEdit() {
   const textArea = slides[cur].querySelector('.text-area');
   textArea.innerHTML = lines.map(s => `<span class="sentence">${toRubyHtml(s)}</span>`).join('\n    ');
   status.textContent = 'Đã áp dụng vào slide.';
+  syncRawInputFromSlideGroups();
   updateNumberedContentBox();
+  scheduleOrphanFix();
   scheduleAutosave();
 }
 
