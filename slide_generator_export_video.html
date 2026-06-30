@@ -562,6 +562,23 @@ ruby rt {
       <span class="status" id="tray-delete-status"></span>
     </div>
 
+    <label for="bulk-img-del-range" style="margin-top:6px;">Xoá ảnh đã chèn trên nhiều slide cùng lúc (nhập số slide, vd: 1-2, 5, 10-100)</label>
+    <input type="text" id="bulk-img-del-range" placeholder="VD: 1-2, 5, 10-100">
+    <div class="panel-actions">
+      <button class="btn" style="background:#3a1a1a; color:#f08080; border-color:#7a3030;" onclick="deleteImagesInSlideRange()">🗑 Xoá ảnh trong các slide trên</button>
+      <span class="status" id="bulk-img-del-status"></span>
+    </div>
+    <span class="hint-small">Xoá toàn bộ ảnh đã chèn (AI tạo, tải lên, mapping theo tên file) trong các slide nằm trong khoảng đã nhập. Có thể nhập nhiều khoảng/số cách nhau bằng dấu phẩy, vd "1-2, 5, 10-100". Không ảnh hưởng đến ảnh trong khay tải lên.</span>
+
+    <label for="bulk-img-layer-range" style="margin-top:6px;">Chỉnh trước/sau chữ đồng loạt cho ảnh trên nhiều slide (nhập số slide, vd: 1-2, 5, 10-100)</label>
+    <input type="text" id="bulk-img-layer-range" placeholder="VD: 1-2, 5, 10-100">
+    <div class="panel-actions">
+      <button class="btn btn-sm" onclick="setImagesLayerInSlideRange(false)">⬆ Đưa ra trước chữ</button>
+      <button class="btn btn-sm" onclick="setImagesLayerInSlideRange(true)">⬇ Đưa ra sau chữ</button>
+      <span class="status" id="bulk-img-layer-status"></span>
+    </div>
+    <span class="hint-small">Áp dụng cho toàn bộ ảnh đã chèn trong các slide nằm trong khoảng đã nhập, không cần bấm từng ảnh.</span>
+
     <label for="img-map-prefix" style="margin-top:6px;">Mapping tự động theo tên file (tiền_tố_số.ext, vd: scene_1.jpg, scene_2.png...)</label>
     <input type="text" id="img-map-prefix" placeholder="VD: scene">
     <div class="panel-actions">
@@ -569,6 +586,39 @@ ruby rt {
       <span class="status" id="img-map-status"></span>
     </div>
     <span class="hint-small">Đặt tên ảnh đúng dạng "tiền_tố_số.phần_mở_rộng" trước khi tải lên ở trên (số 1 = slide 1, số 2 = slide 2...). Nhập đúng tiền tố rồi bấm nút này để tự gán từng ảnh vào đúng slide theo số thứ tự, không cần kéo tay.</span>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-header" onclick="togglePanel(this)">
+    <span class="panel-title">🏷️ Logo trên slide</span>
+    <span class="panel-arrow">▾</span>
+  </div>
+  <div class="panel-body">
+    <input type="file" id="logo-input" accept="image/*" onchange="handleLogoUpload(event)">
+    <div id="logo-preview-wrap" style="display:none; margin-top:6px;">
+      <img id="logo-preview" style="max-height:64px; max-width:160px; border-radius:4px; border:1px solid #3a3a5c; background:#fff;">
+    </div>
+    <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-top:8px;">
+      <label style="display:flex;align-items:center;gap:4px;">Trái <input type="number" id="logo-left" value="2" min="0" max="99" step="1" style="width:56px"> %</label>
+      <label style="display:flex;align-items:center;gap:4px;">Trên <input type="number" id="logo-top" value="2" min="0" max="99" step="1" style="width:56px"> %</label>
+      <label style="display:flex;align-items:center;gap:4px;">Rộng <input type="number" id="logo-width" value="15" min="1" max="100" step="1" style="width:56px"> %</label>
+      <label style="display:flex;align-items:center;gap:4px;">Mờ <input type="number" id="logo-opacity" value="100" min="0" max="100" step="5" style="width:56px"> %</label>
+    </div>
+    <div style="margin-top:6px;">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="logo-behind"> Đặt logo sau chữ</label>
+    </div>
+    <div class="panel-actions" style="margin-top:8px; flex-wrap:wrap; gap:6px;">
+      <button class="btn btn-primary" onclick="applyLogoToSlideRange('all')">✅ Áp dụng logo vào tất cả slide</button>
+      <button class="btn" style="background:#1a3a2a;color:#80f0b0;border-color:#307050;" onclick="syncLogoFromCurrentSlide()">📐 Lấy vị trí từ slide hiện tại → Áp dụng tất cả</button>
+      <span class="status" id="logo-status"></span>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center;margin-top:6px;flex-wrap:wrap;">
+      <input type="text" id="logo-range" placeholder="Slide cụ thể, vd: 1-2, 5, 10-100" style="flex:1;min-width:160px;">
+      <button class="btn btn-sm" onclick="applyLogoToSlideRange('range')">✅ Áp dụng</button>
+      <button class="btn btn-sm" style="background:#3a1a1a;color:#f08080;border-color:#7a3030;" onclick="removeLogoFromSlides()">🗑 Xoá logo</button>
+    </div>
+    <span class="hint-small" style="margin-top:4px;">Kéo/resize logo trên slide bất kỳ → các ô Trái/Trên/Rộng tự cập nhật theo → bấm "📐 Lấy vị trí từ slide hiện tại → Áp dụng tất cả" để đồng bộ sang toàn bộ slide. Ô nhập khoảng slide dùng cho nút "Áp dụng" và "Xoá logo" riêng lẻ; để trống → Xoá sẽ xoá logo khỏi toàn bộ slide.</span>
   </div>
 </div>
 
@@ -1371,6 +1421,164 @@ function setSlideIllust(idx, dataUrl) {
   scheduleAutosave();
 }
 
+let logoDataUrl = null;
+
+function handleLogoUpload(e) {
+  const file = (e.target.files || [])[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    logoDataUrl = reader.result;
+    const preview = document.getElementById('logo-preview');
+    const wrap = document.getElementById('logo-preview-wrap');
+    if (preview) { preview.src = logoDataUrl; }
+    if (wrap) { wrap.style.display = ''; }
+    scheduleAutosave();
+  };
+  reader.readAsDataURL(file);
+}
+
+function applyLogoToSlideRange(mode) {
+  const status = document.getElementById('logo-status');
+  if (!logoDataUrl) { status.textContent = 'Vui lòng chọn file logo trước.'; return; }
+  if (!slides.length) { status.textContent = 'Chưa có slide nào.'; return; }
+  const leftPct = parseFloat(document.getElementById('logo-left').value) || 2;
+  const topPct  = parseFloat(document.getElementById('logo-top').value)  || 2;
+  const widthPct = Math.max(1, parseFloat(document.getElementById('logo-width').value) || 15);
+  const opacity  = parseFloat(document.getElementById('logo-opacity').value);
+  const behind   = document.getElementById('logo-behind').checked;
+  let targetIndices;
+  if (mode === 'all') {
+    targetIndices = slides.map((_, i) => i);
+  } else {
+    const rangeStr = document.getElementById('logo-range').value.trim();
+    if (!rangeStr) { status.textContent = 'Vui lòng nhập số slide cần áp dụng.'; return; }
+    const nums = parseSlideRangeString(rangeStr);
+    targetIndices = Array.from(nums).map(n => n - 1).filter(i => i >= 0 && i < slides.length);
+    if (!targetIndices.length) { status.textContent = 'Không có slide hợp lệ trong khoảng đã nhập.'; return; }
+  }
+  let count = 0;
+  for (const idx of targetIndices) {
+    const slide = slides[idx];
+    let logo = slide.querySelector('.illust[data-logo="1"]');
+    if (!logo) {
+      logo = createDraggableImage(logoDataUrl, leftPct, topPct, widthPct);
+      logo.dataset.logo = '1';
+      slide.appendChild(logo);
+    } else {
+      logo.querySelector('img').src = logoDataUrl;
+      logo.style.left  = leftPct  + '%';
+      logo.style.top   = topPct   + '%';
+      logo.style.width = widthPct + '%';
+    }
+    logo.style.opacity = isNaN(opacity) ? '1' : (opacity / 100).toFixed(2);
+    logo.classList.toggle('behind-text', behind);
+    updateIllustLayerBtn(logo);
+    count++;
+  }
+  status.textContent = `Đã áp dụng logo vào ${count} slide.`;
+  scheduleAutosave();
+}
+
+function removeLogoFromSlides() {
+  const status = document.getElementById('logo-status');
+  if (!slides.length) { status.textContent = 'Chưa có slide nào.'; return; }
+  const rangeStr = document.getElementById('logo-range').value.trim();
+  let targetIndices;
+  if (!rangeStr) {
+    targetIndices = slides.map((_, i) => i);
+  } else {
+    const nums = parseSlideRangeString(rangeStr);
+    targetIndices = Array.from(nums).map(n => n - 1).filter(i => i >= 0 && i < slides.length);
+    if (!targetIndices.length) { status.textContent = 'Không có slide hợp lệ trong khoảng đã nhập.'; return; }
+  }
+  let count = 0;
+  for (const idx of targetIndices) {
+    const logo = slides[idx].querySelector('.illust[data-logo="1"]');
+    if (logo) { logo.remove(); count++; }
+  }
+  status.textContent = count
+    ? `Đã xoá logo khỏi ${count} slide.`
+    : 'Không tìm thấy logo trong các slide đã chọn.';
+  scheduleAutosave();
+}
+
+function syncLogoFromCurrentSlide() {
+  const status = document.getElementById('logo-status');
+  if (!slides.length) { status.textContent = 'Chưa có slide nào.'; return; }
+  const logo = slides[cur].querySelector('.illust[data-logo="1"]');
+  if (!logo) { status.textContent = `Slide ${cur + 1} không có logo để lấy vị trí.`; return; }
+  syncLogoInputsFromElement(logo);
+  applyLogoToSlideRange('all');
+}
+
+function parseSlideRangeString(str) {
+  const indices = new Set();
+  const parts = (str || '').split(',').map(p => p.trim()).filter(Boolean);
+  for (const part of parts) {
+    const rangeMatch = part.match(/^(\d+)\s*-\s*(\d+)$/);
+    if (rangeMatch) {
+      let a = parseInt(rangeMatch[1], 10);
+      let b = parseInt(rangeMatch[2], 10);
+      if (a > b) [a, b] = [b, a];
+      for (let i = a; i <= b; i++) indices.add(i);
+    } else if (/^\d+$/.test(part)) {
+      indices.add(parseInt(part, 10));
+    }
+  }
+  return indices;
+}
+
+function deleteImagesInSlideRange() {
+  const input = document.getElementById('bulk-img-del-range');
+  const status = document.getElementById('bulk-img-del-status');
+  const rangeStr = input.value.trim();
+  if (!slides.length) { status.textContent = 'Chưa có slide nào.'; return; }
+  if (!rangeStr) { status.textContent = 'Vui lòng nhập số slide (vd: 1-2, 5, 10-100).'; return; }
+  const slideNumbers = parseSlideRangeString(rangeStr);
+  if (!slideNumbers.size) { status.textContent = 'Không đọc được số slide hợp lệ.'; return; }
+  let imgCount = 0;
+  let slideCount = 0;
+  slideNumbers.forEach(n => {
+    const idx = n - 1;
+    if (idx < 0 || idx >= slides.length) return;
+    const illusts = slides[idx].querySelectorAll('.illust');
+    if (illusts.length) slideCount++;
+    illusts.forEach(el => { el.remove(); imgCount++; });
+  });
+  status.textContent = imgCount
+    ? `Đã xoá ${imgCount} ảnh trên ${slideCount} slide.`
+    : 'Không tìm thấy ảnh nào trong các slide đã chọn.';
+  scheduleAutosave();
+}
+
+function setImagesLayerInSlideRange(behind) {
+  const input = document.getElementById('bulk-img-layer-range');
+  const status = document.getElementById('bulk-img-layer-status');
+  const rangeStr = input.value.trim();
+  if (!slides.length) { status.textContent = 'Chưa có slide nào.'; return; }
+  if (!rangeStr) { status.textContent = 'Vui lòng nhập số slide (vd: 1-2, 5, 10-100).'; return; }
+  const slideNumbers = parseSlideRangeString(rangeStr);
+  if (!slideNumbers.size) { status.textContent = 'Không đọc được số slide hợp lệ.'; return; }
+  let imgCount = 0;
+  let slideCount = 0;
+  slideNumbers.forEach(n => {
+    const idx = n - 1;
+    if (idx < 0 || idx >= slides.length) return;
+    const illusts = slides[idx].querySelectorAll('.illust');
+    if (illusts.length) slideCount++;
+    illusts.forEach(el => {
+      el.classList.toggle('behind-text', behind);
+      updateIllustLayerBtn(el);
+      imgCount++;
+    });
+  });
+  status.textContent = imgCount
+    ? `Đã đưa ${imgCount} ảnh trên ${slideCount} slide ra ${behind ? 'sau' : 'trước'} chữ.`
+    : 'Không tìm thấy ảnh nào trong các slide đã chọn.';
+  scheduleAutosave();
+}
+
 function addUploadedImageToSlide(slide, dataUrl, clientX, clientY) {
   const rect = slide.getBoundingClientRect();
   const widthPct = 50;
@@ -1591,10 +1799,24 @@ function onDragMove(e) {
 }
 
 function onDragEnd() {
+  const el = dragState && dragState.el;
   dragState = null;
   document.removeEventListener('pointermove', onDragMove);
   document.removeEventListener('pointerup', onDragEnd);
+  if (el && el.dataset.logo === '1') syncLogoInputsFromElement(el);
   scheduleAutosave();
+}
+
+function syncLogoInputsFromElement(el) {
+  const left  = parseFloat(el.style.left);
+  const top   = parseFloat(el.style.top);
+  const width = parseFloat(el.style.width);
+  const opacity = parseFloat(el.style.opacity);
+  if (!isNaN(left))    document.getElementById('logo-left').value    = Math.round(left  * 10) / 10;
+  if (!isNaN(top))     document.getElementById('logo-top').value     = Math.round(top   * 10) / 10;
+  if (!isNaN(width))   document.getElementById('logo-width').value   = Math.round(width * 10) / 10;
+  if (!isNaN(opacity)) document.getElementById('logo-opacity').value = Math.round(opacity * 100);
+  document.getElementById('logo-behind').checked = el.classList.contains('behind-text');
 }
 
 function show(n) {
@@ -2465,7 +2687,15 @@ function getProjectState() {
     audioDataUrl,
     slideTimestamps,
     videoResolution: document.getElementById('video-resolution').value,
-    numberedContentPlain: document.getElementById('numbered-content-plain').checked
+    numberedContentPlain: document.getElementById('numbered-content-plain').checked,
+    logo: {
+      dataUrl: logoDataUrl,
+      leftPct: document.getElementById('logo-left').value,
+      topPct: document.getElementById('logo-top').value,
+      widthPct: document.getElementById('logo-width').value,
+      opacity: document.getElementById('logo-opacity').value,
+      behind: document.getElementById('logo-behind').checked
+    }
   };
 }
 
@@ -2541,6 +2771,22 @@ function applyProjectState(state) {
   const audioStatusEl = document.getElementById('audio-status');
   if (audioStatusEl) audioStatusEl.textContent = audioDataUrl ? 'Đã khôi phục file audio đã lưu.' : '';
   rebuildTimestampList();
+
+  if (state.logo) {
+    const lg = state.logo;
+    if (lg.dataUrl) {
+      logoDataUrl = lg.dataUrl;
+      const preview = document.getElementById('logo-preview');
+      const wrap = document.getElementById('logo-preview-wrap');
+      if (preview) preview.src = logoDataUrl;
+      if (wrap) wrap.style.display = '';
+    }
+    if (lg.leftPct  !== undefined) document.getElementById('logo-left').value    = lg.leftPct;
+    if (lg.topPct   !== undefined) document.getElementById('logo-top').value     = lg.topPct;
+    if (lg.widthPct !== undefined) document.getElementById('logo-width').value   = lg.widthPct;
+    if (lg.opacity  !== undefined) document.getElementById('logo-opacity').value = lg.opacity;
+    if (lg.behind   !== undefined) document.getElementById('logo-behind').checked = lg.behind;
+  }
 
   applySlideStyle();
 
